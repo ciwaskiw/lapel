@@ -58,8 +58,9 @@ afterthoughts.
    explicit, per-job action the user initiates. The user reviews and advances job status between the
    two stages.
 4. **No fabrication.** Tailoring prompts forbid inventing employers, titles, dates, or skills.
-   Every claim in generated documents must trace to the profile. When evidence is thin, the model
-   states the gap rather than inventing.
+   Every claim in generated documents must trace to the profile — or to real experience the user
+   supplies on the spot via the `tailor` gap-interview (Section 10). When evidence is thin and the
+   user can't supply more, the model states the gap rather than inventing.
 5. **Cost-aware by construction.** A cheap deterministic prefilter runs before any LLM scoring.
    Model tiering (Section 8) keeps routine work on Sonnet and reserves Opus for synthesis the user
    opts into.
@@ -89,15 +90,17 @@ job-scout profile update [--note "<text>"]
 job-scout profile show
     Print profile.md to stdout (no LLM). Convenience/inspection command.
 
-job-scout find [--limit <n>] [--min-score <0-100>] [--no-score]
+job-scout find [--limit <n>] [--min-score <0-100>] [--no-score] [--keep-dropped]
     Crawl the ATS watchlist (./companies.yaml), normalize, dedup vs DB, prefilter, score,
     persist (status=new), print a ranked table. --no-score skips LLM scoring (prefilter only).
+    --keep-dropped additionally prints the prefilter-dropped jobs with their drop reasons
+    (not persisted). Dropped count + reasons are always logged to stderr regardless.
 
-job-scout add <url...> | --urls <file>
+job-scout add <url...> | --urls <file> [--keep-dropped]
     Ingest specific posting URLs into the same pipeline as find (fetch -> normalize -> dedup ->
     prefilter -> score -> persist status=new). Accepts URLs as args and/or a newline-delimited
-    file. v1 supports URLs only; the ingest core is structured so text/CSV inputs can be added
-    later (see Section 6.4).
+    file. --keep-dropped behaves as in find. v1 supports URLs only; the ingest core is structured
+    so text/CSV inputs can be added later (see Section 6.4).
 
 job-scout pipeline [--status <new|interested|applied|rejected>] [--min-score <n>]
     View tracked jobs as a table, newest/highest-score first. Read-only (no LLM).
@@ -105,10 +108,12 @@ job-scout pipeline [--status <new|interested|applied|rejected>] [--min-score <n>
 job-scout status <job-id> <new|interested|applied|rejected>
     Advance a job's status. This is the human review gate between find and tailor.
 
-job-scout tailor <job-id | url | --text <file>> [--opus]
+job-scout tailor <job-id | url | --text <file>> [--opus] [--no-interview]
     Generate resume-summary.md + cover-letter.md + fit-notes.md for one posting into
     ./output/<slug>/, and record paths in the applications table. Input may be a DB job id, a
-    raw URL, or freeform text from a file. --opus forces the Opus tier for synthesis.
+    raw URL, or freeform text from a file. --opus forces the Opus tier for synthesis. By default
+    runs a bounded gap-interview (Section 10) when the posting emphasizes skills the profile
+    covers thinly; --no-interview skips it and tailors from the profile as-is.
 
 job-scout mcp
     Start the job-scout MCP server on stdio (see Section 9).
@@ -174,7 +179,8 @@ job-scout/
 │   │       ├── interview.ts
 │   │       ├── synthesize-profile.ts
 │   │       ├── score.ts
-│   │       └── tailor.ts
+│   │       ├── tailor.ts
+│   │       └── tailor-gap-interview.ts  # identify thin-coverage gaps + generate questions
 │   └── mcp/
 │       └── server.ts           # published job-scout MCP server (Section 9)
 ├── test/                       # vitest; mirrors src/ structure; fixtures/ for recorded JSON
@@ -183,10 +189,11 @@ job-scout/
     └── superpowers/specs/2026-06-01-job-scout-design.md   # this file
 ```
 
-**Module dependency rule:** `sources/`, `db/`, `profile/store.ts`, `profile/schema.ts`,
-`ingest/prefilter.ts`, `ingest/dedup.ts`, `scoring/rubric.ts` must not import anything from
-`agent/` or the Anthropic SDK. Enforce by review; optionally by an eslint boundary rule
-(implementer's discretion).
+**Module dependency rule (machine-enforced):** `sources/`, `db/`, `profile/store.ts`,
+`profile/schema.ts`, `ingest/prefilter.ts`, `ingest/dedup.ts`, `scoring/rubric.ts` must not import
+anything from `agent/` or the Anthropic SDK. Enforce this in ESLint via `eslint-plugin-boundaries`
+(or `no-restricted-imports` zones) so the boundary is checked in CI/lint, not just by review. A
+violation must fail lint.
 
 ---
 
@@ -206,6 +213,11 @@ job-scout/
 - **Living refinement (the feedback loop):** an `update_profile` agent tool (Section 10) lets `find`
   and `tailor` *propose* additions mid-task — e.g. a job outside the user's commute prompts "record
   max commute 30 mi?" The change is written **only after explicit user confirmation**.
+- **Gap-interview during tailor:** when a posting heavily emphasizes a skill the profile covers
+  thinly or not at all, `tailor` interviews the user to surface real, specific experience, then uses
+  the answers both to strengthen the tailored documents and (via `update_profile`) to offer to
+  enrich the profile. Full behavior in Section 10. This is the primary way the profile grows from
+  "resume bullets" into a deep, evidence-rich record over a job search.
 
 ### 5.2 Profile schema (zod, `profile/schema.ts`)
 
@@ -323,8 +335,9 @@ Drops a job before LLM scoring when, per the profile's `preferences`:
 - `mustHave` terms are entirely absent from title+description.
 
 Conservative by design: when unsure, keep the job (let scoring decide). Returns kept + reason-tagged
-dropped lists (dropped ones are logged, not persisted, unless `--keep-dropped` — implementer's
-discretion whether to add that flag).
+dropped lists. Dropped jobs are **never persisted**; their count and per-job reasons are **always
+logged to stderr**. The `--keep-dropped` flag additionally prints the dropped list (with reasons) to
+stdout so the user can spot an over-aggressive prefilter or a bad profile preference.
 
 ### 6.4 Scoring (`scoring/`, LLM)
 
@@ -342,8 +355,10 @@ const JobScore = z.object({
 
 The rubric (in `scoring/rubric.ts`, included verbatim in the prompt) weights: skills/tech overlap
 with `skills.core`, seniority fit, location/remote fit, and alignment with `preferences.targetRoles`.
-Scoring uses the **worker tier** (Sonnet) by default. Batch to control cost (implementer picks batch
-size; default ~10 jobs/call).
+Scoring uses the **worker tier** (Sonnet) by default. Batch to control cost: a config constant
+`SCORING_BATCH_SIZE` defaults to **10** jobs/call. Per-item reliability is handled by the
+zod-validate + one-repair-retry path above (a malformed item degrades to skip-with-warning, it does
+not fail the batch). Do not score per-job — too costly over a large watchlist.
 
 > **Future-proofing for `add` inputs:** the ingest core takes `NormalizedJob[]`, so adding text- or
 > CSV-based batch inputs later means writing a new builder that emits `NormalizedJob[]` — no change
@@ -418,7 +433,10 @@ schemas):
 - `add_jobs({ urls: string[] })` — ingests URLs into the pipeline.
 - `score_job({ url?, text? })` — scores a single posting against the profile (no persist).
 - `query_pipeline({ status?, minScore? })` — reads the pipeline.
-- `tailor({ jobId?, url?, text?, opus? })` — generates and persists tailored docs.
+- `tailor({ jobId?, url?, text?, opus? })` — generates and persists tailored docs. Runs
+  **non-interactively** (no TTY in the MCP context): it tailors from the profile as-is and includes
+  the identified gap questions (Section 10) in its result so the calling agent can ask them and, if
+  the user elaborates, call `tailor` again or `update_profile`.
 
 The README documents adding the server to Claude Desktop/Code config. The MCP server and CLI share
 identical core calls — no duplicated logic.
@@ -434,8 +452,29 @@ identical core calls — no duplicated logic.
   skill, a stated preference), it calls `update_profile` to **propose** a change. The CLI surfaces a
   confirmation prompt; the profile is written only on explicit user "yes." This is the "living
   profile" loop.
-- Prompts live in `agent/prompts/` as plain string modules so they're diffable and reviewable. The
-  tailor prompt contains the no-fabrication contract (Principle 4) explicitly.
+- **Gap-interview during `tailor` (default on; `--no-interview` to skip):**
+  1. After fetching the posting and loading the profile, the agent identifies the posting's
+     **high-emphasis requirements** (skills/qualifications the posting stresses) and cross-references
+     the profile. A requirement is a "gap" when it is emphasized by the posting but **absent or only
+     thinly evidenced** in the profile (e.g. mentioned once with no supporting highlight).
+  2. The agent asks the user targeted questions about the **top N gaps** (N capped, default **3**) —
+     e.g. "This role leans heavily on Kafka; your profile mentions it once. Have you run Kafka in
+     production — scale, your role, what you built?" Questions are skipped for gaps the user can't
+     speak to; the user may answer "skip"/"no experience."
+  3. Answers feed synthesis directly, so the tailored resume/cover reflect the elaborated, **real**
+     experience. This is how `tailor` stays honest under pressure: it asks for true experience rather
+     than inventing it — a direct application of Principle 4, not an exception to it. The model never
+     promotes a "skip"/"no experience" answer into a claim.
+  4. For each substantive answer, the agent offers (via `update_profile`, confirmed) to persist the
+     elaboration into the relevant `experience[].highlights` or `skills`, so the next tailor starts
+     richer.
+  - **Non-interactive contexts (MCP server, `--no-interview`, no TTY):** the interview does **not**
+    block. Instead `tailor` proceeds from the profile as-is and returns the identified gap questions
+    in its result (Section 9) so the caller (e.g. an agent in Claude Desktop) can choose to ask them.
+- Prompts live in `agent/prompts/` as plain string modules so they're diffable and reviewable:
+  `interview.ts` (profile build), `synthesize-profile.ts`, `score.ts`, `tailor.ts`, and
+  `tailor-gap-interview.ts` (gap identification + question generation). The tailor prompts contain
+  the no-fabrication contract (Principle 4) explicitly.
 
 ---
 
@@ -487,8 +526,10 @@ Required sections:
 - Runtime: Node 20+ (built-in `fetch`), TypeScript strict, ESM (`type: module`, NodeNext).
 - CLI: `commander`. Schemas/validation: `zod`. DB: `better-sqlite3`. PDF: `unpdf`. YAML: `yaml`.
   Env: `dotenv`. Agent: `@anthropic-ai/claude-agent-sdk`. Consumed MCP: official `fetch` server.
-- Dev: `vitest`, `tsx` (run TS directly), `tsup` or `tsc` for the `dist/` build (implementer's
-  discretion). Lint/format: implementer's discretion, but include something.
+- Dev: `vitest`, `tsx` (run TS directly in dev), **plain `tsc`** for the `dist/` build (no bundler —
+  legible toolchain, avoids native-module bundling friction with `better-sqlite3`; NodeNext requires
+  explicit `.js` extensions on relative imports). Lint/format: **ESLint + Prettier**, with a
+  machine-enforced import-boundary rule (see Section 4).
 
 ---
 
@@ -503,7 +544,7 @@ Required sections:
 6. `scoring/` + tests; enable scoring in `find`.
 7. `add` (URL ingest via fetch MCP) reusing the ingest core.
 8. `pipeline` + `status`.
-9. `tailor` + the no-fabrication prompt + output writing/tracking.
-10. `update_profile` feedback-loop tool in `find`/`tailor`.
+9. `tailor` + the no-fabrication prompt + output writing/tracking (start with `--no-interview`).
+10. `update_profile` feedback-loop tool, then the gap-interview in `tailor` (Section 10) on top of it.
 11. `mcp/server.ts` published server over the same core.
 12. README (all sections) + demo transcript.
