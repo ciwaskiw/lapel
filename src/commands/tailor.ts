@@ -4,9 +4,13 @@ import { createClient } from '../agent/client.js';
 import { structuredCall } from '../agent/llm.js';
 import { TAILOR_SYSTEM, tailorUserPrompt, TailorOutputSchema } from '../agent/prompts/tailor.js';
 import { openDb, migrate, getJobById } from '../db/index.js';
-import { loadProfile } from '../profile/store.js';
+import { loadProfile, saveProfile } from '../profile/store.js';
 import { fetchPostingText } from '../fetcher/posting.js';
 import { tailorPosting } from '../tailor/tailor.js';
+import { runGapInterview } from '../tailor/gap-interview.js';
+import { GAP_SYSTEM, gapUserPrompt, GapsSchema } from '../agent/prompts/tailor-gap-interview.js';
+import { createPrompter } from '../profile/interview.js';
+import { confirmAndApply } from '../agent/propose.js';
 
 export interface TailorCliOpts {
   jobId?: number;
@@ -45,16 +49,47 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
     throw new Error('Provide a <job-id>, a URL, or --text <file>.');
   }
 
-  // A later task inserts the optional gap-interview here (when opts.interview !== false).
+  let extraExperience: string | undefined;
+  let activeProfile = profile;
+  if (opts.interview !== false && process.stdin.isTTY) {
+    const ask = createPrompter();
+    const { extraExperience: extra, proposals } = await runGapInterview({
+      profile: activeProfile,
+      postingText,
+      identifyGaps: (p, posting) =>
+        structuredCall({
+          client,
+          model: cfg.models.worker,
+          system: GAP_SYSTEM,
+          user: gapUserPrompt(p, posting),
+          toolName: 'emit_gaps',
+          schema: GapsSchema,
+        }),
+      ask,
+    });
+    extraExperience = extra || undefined;
+    const confirm = async (reason: string) =>
+      /^y/i.test(await ask(`Update your profile? ${reason} (y/N) `));
+    for (const u of proposals) {
+      const next = await confirmAndApply({
+        profile: activeProfile,
+        update: u,
+        confirm,
+        save: (pp) => saveProfile(cfg, pp),
+      });
+      if (next) activeProfile = next;
+    }
+  }
   const model = opts.opus ? cfg.models.synth : cfg.models.worker;
   const result = await tailorPosting({
     db,
     outputDir: cfg.outputDir,
-    profile,
+    profile: activeProfile,
     jobId,
     company,
     title,
     postingText,
+    extraExperience,
     synthesize: ({ profile, postingText, extra }) =>
       structuredCall({
         client,
