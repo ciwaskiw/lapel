@@ -1,0 +1,5 @@
+# Copy to companies.yaml and edit. Each entry: source + the board slug.
+companies:
+  - { source: greenhouse, slug: stripe, name: Stripe }
+  - { source: lever, slug: netflix, name: Netflix }
+  - { source: ashby, slug: ramp, name: Ramp }

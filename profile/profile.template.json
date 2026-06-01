@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "basics": { "name": "", "headline": "", "yearsExperience": 0, "summary": "" },
+  "skills": { "core": [], "familiar": [] },
+  "experience": [],
+  "preferences": {
+    "targetRoles": [], "seniority": [], "locations": [], "remote": "any",
+    "maxCommuteMiles": null, "minBaseComp": null, "mustHave": [], "dealbreakers": []
+  },
+  "notes": []
+}
