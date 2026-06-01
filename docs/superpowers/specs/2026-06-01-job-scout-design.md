@@ -4,6 +4,17 @@
 **Status:** Approved for implementation planning
 **Author:** Design via Claude Opus 4.8 (brainstorming). Intended implementer: Claude Sonnet 4.6 (separate session).
 
+> **Amendment (2026-06-01, during implementation):** The original design called this a "Claude Agent
+> SDK app" that *consumes* the official `fetch` MCP. During build we found `@anthropic-ai/claude-agent-sdk`
+> was unused (all LLM calls go through the `@anthropic-ai/sdk` Messages API with tool use) and it forced
+> a `zod@4` peer-dependency conflict that broke a clean `npm install`. **Decision:** drop the Agent SDK;
+> build on `@anthropic-ai/sdk` (structured tool use + the `update_profile` agentic feedback loop) and
+> *publish* an MCP server via `@modelcontextprotocol/sdk`. URL retrieval (`add`/`tailor`) uses a direct
+> `fetch` + `html-to-text`, not the fetch MCP. The agentic + MCP portfolio story is intact (tool-use
+> loops, the living-profile feedback loop, a published MCP server usable from Claude Desktop/Code);
+> only the package framing changed. Sections below that still say "Agent SDK" / "consumes fetch MCP"
+> are superseded by this note.
+
 > **Note to implementer:** This spec is written to be self-contained. You will not have the
 > brainstorming conversation in context. Every command signature, schema, and module
 > responsibility you need is specified here. Where this spec says "exact," treat it as a contract.
@@ -172,7 +183,7 @@ job-scout/
 │   ├── tailor/
 │   │   └── tailor.ts           # fetch/extract -> synthesize -> write -> track
 │   ├── agent/
-│   │   ├── client.ts           # Agent SDK setup, model selection, MCP consumption (fetch)
+│   │   ├── client.ts           # Anthropic SDK client + model selection
 │   │   ├── tools/              # in-process SDK tools (zod-typed)
 │   │   │   └── update-profile.ts   # lets find/tailor propose profile additions
 │   │   └── prompts/            # system prompts as string modules
@@ -322,9 +333,8 @@ ingest(jobs: NormalizedJob[], opts) ->
   -> return summary(added, updated, skipped, ranked)
 ```
 
-`find` builds the `NormalizedJob[]` from the watchlist adapters; `add` builds it from URLs (fetch
-via the consumed fetch MCP, then a light extraction into `NormalizedJob`). Both then call the same
-`ingest`.
+`find` builds the `NormalizedJob[]` from the watchlist adapters; `add` builds it from URLs (direct
+`fetch` + `html-to-text` extraction into `NormalizedJob`). Both then call the same `ingest`.
 
 ### 6.3 Prefilter (`ingest/prefilter.ts`, deterministic, unit-tested)
 
@@ -447,8 +457,9 @@ identical core calls — no duplicated logic.
 
 ## 10. Agent Layer & the Feedback Loop
 
-- `agent/client.ts` configures the Claude Agent SDK: model selection (Section 8), and **consumes the
-  official `fetch` MCP** so `add`/`tailor` robustly pull posting text from a URL.
+- `agent/client.ts` constructs the Anthropic SDK client (`@anthropic-ai/sdk`) and centralizes model
+  selection (Section 8). URL retrieval for `add`/`tailor` uses a direct `fetch` + `html-to-text`
+  (`src/fetcher/`), not an external MCP — see the amendment note at the top of this spec.
 - In-process SDK tool `update_profile` (zod-typed) is available during `find` and `tailor`. When the
   agent notices a signal worth recording (a commute conflict the user flags, a recurring missing
   skill, a stated preference), it calls `update_profile` to **propose** a change. The CLI surfaces a
@@ -525,9 +536,11 @@ Required sections:
 
 ## 13. Tech Stack (pinned choices)
 
-- Runtime: Node 20+ (built-in `fetch`), TypeScript strict, ESM (`type: module`, NodeNext).
-- CLI: `commander`. Schemas/validation: `zod`. DB: `better-sqlite3`. PDF: `unpdf`. YAML: `yaml`.
-  Env: `dotenv`. Agent: `@anthropic-ai/claude-agent-sdk`. Consumed MCP: official `fetch` server.
+- Runtime: Node 22 (built-in `fetch`), TypeScript strict, ESM (`type: module`, NodeNext).
+- CLI: `commander`. Schemas/validation: `zod` (v3). DB: `better-sqlite3`. PDF: `unpdf`. YAML: `yaml`.
+  Env: `dotenv`. LLM: `@anthropic-ai/sdk` (Messages API + tool use) with `zod-to-json-schema`.
+  Published MCP server: `@modelcontextprotocol/sdk`. (No `@anthropic-ai/claude-agent-sdk` — see the
+  amendment note at the top of this spec.)
 - Dev: `vitest`, `tsx` (run TS directly in dev), **plain `tsc`** for the `dist/` build (no bundler —
   legible toolchain, avoids native-module bundling friction with `better-sqlite3`; NodeNext requires
   explicit `.js` extensions on relative imports). Lint/format: **ESLint + Prettier**, with a
@@ -544,7 +557,7 @@ Required sections:
 4. `sources/` adapters + fixtures + tests.
 5. `ingest/` (dedup, prefilter) + tests; wire `find` (with `--no-score`) end-to-end.
 6. `scoring/` + tests; enable scoring in `find`.
-7. `add` (URL ingest via fetch MCP) reusing the ingest core.
+7. `add` (URL ingest via direct fetch + html-to-text) reusing the ingest core.
 8. `pipeline` + `status`.
 9. `tailor` + the no-fabrication prompt + output writing/tracking (start with `--no-interview`).
 10. `update_profile` feedback-loop tool, then the gap-interview in `tailor` (Section 10) on top of it.
