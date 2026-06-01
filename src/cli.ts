@@ -5,6 +5,8 @@ import { openDb, migrate } from './db/index.js';
 import { loadProfile } from './profile/store.js';
 import { loadWatchlist } from './sources/index.js';
 import { runFind } from './commands/find.js';
+import { renderPipeline, changeStatus } from './commands/pipeline.js';
+import type { JobStatus } from './db/index.js';
 
 const program = new Command();
 program
@@ -27,6 +29,31 @@ program
     migrate(db);
     const watchlist = loadWatchlist(cfg.companiesFile);
     await runFind({ db, profile, watchlist, score: null, keepDropped: opts.keepDropped, limit: opts.limit, minScore: opts.minScore });
+  });
+
+program
+  .command('pipeline')
+  .description('View tracked jobs.')
+  .option('--status <status>', 'filter by status')
+  .option('--min-score <n>', 'minimum score', (v) => parseInt(v, 10))
+  .action((opts) => {
+    const cfg = loadConfig();
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    console.log(renderPipeline(db, { status: opts.status as JobStatus | undefined, minScore: opts.minScore }));
+  });
+
+program
+  .command('status')
+  .description('Advance a job between new | interested | applied | rejected.')
+  .argument('<job-id>', 'job id', (v) => parseInt(v, 10))
+  .argument('<state>', 'new | interested | applied | rejected')
+  .action((jobId: number, state: string) => {
+    const cfg = loadConfig();
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    changeStatus(db, jobId, state as JobStatus);
+    console.log(`Job ${jobId} → ${state}`);
   });
 
 program.parseAsync(process.argv).catch((err) => {
