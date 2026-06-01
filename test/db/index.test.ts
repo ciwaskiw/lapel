@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openDb, migrate, upsertJob, getJobs, getJobById, setStatus, insertApplication, getApplication } from '../../src/db/index.js';
+import { openDb, migrate, upsertJob, getJobs, getJobById, existingKeys, setStatus, insertApplication, getApplication } from '../../src/db/index.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 function sampleJob(over: Partial<NormalizedJob> = {}): NormalizedJob {
@@ -53,5 +53,22 @@ describe('db', () => {
     insertApplication(db, { jobId: r.id, resumePath: 'a.md', coverPath: 'b.md', fitNotesPath: 'c.md' });
     insertApplication(db, { jobId: r.id, resumePath: 'a2.md', coverPath: 'b2.md', fitNotesPath: 'c2.md' });
     expect(getApplication(db, r.id)!.resume_path).toBe('a2.md');
+  });
+
+  it('existingKeys exposes both source:externalId keys and urls', () => {
+    upsertJob(db, sampleJob({ externalId: 'a', url: 'https://x/a' }));
+    upsertJob(db, sampleJob({ externalId: 'b', url: 'https://x/b' }));
+    const { ids, urls } = existingKeys(db);
+    expect(ids.has('greenhouse:a')).toBe(true);
+    expect(ids.has('greenhouse:b')).toBe(true);
+    expect(ids.has('greenhouse:missing')).toBe(false);
+    expect(urls.has('https://x/a')).toBe(true);
+    expect(urls.has('https://x/missing')).toBe(false);
+  });
+
+  it('migrate is idempotent (safe to run twice)', () => {
+    expect(() => migrate(db)).not.toThrow();
+    const r = upsertJob(db, sampleJob());
+    expect(getJobById(db, r.id)!.company).toBe('Acme');
   });
 });
