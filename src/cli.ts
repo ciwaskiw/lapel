@@ -13,6 +13,7 @@ import { makeScorer } from './scoring/score.js';
 import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
 import { runAdd } from './commands/add.js';
 import { runTailor } from './commands/tailor.js';
+import { startMcpServer } from './mcp/server.js';
 
 const program = new Command();
 program
@@ -151,6 +152,13 @@ program
       opus: opts.opus,
       interview: opts.interview,
     });
+  });
+
+program
+  .command('mcp')
+  .description('Start the job-scout MCP server on stdio.')
+  .action(async () => {
+    await startMcpServer();
   });
 
 program.parseAsync(process.argv).catch((err) => {
