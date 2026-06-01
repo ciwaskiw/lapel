@@ -19,5 +19,7 @@ describe('lever adapter', () => {
     expect(jobs[0].title).toBe('Staff Frontend Engineer');
     expect(jobs[0].remote).toBe(true);
     expect(jobs[0].url).toBe('https://jobs.lever.co/acme/abc-123');
+    // createdAt epoch (1716220800000) is converted to an ISO timestamp
+    expect(jobs[0].postedAt).toBe(new Date(1716220800000).toISOString());
   });
 });

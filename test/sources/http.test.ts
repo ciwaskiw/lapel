@@ -24,4 +24,20 @@ describe('fetchJson', () => {
     expect(r).toEqual({ ok: 1 });
     expect(f).toHaveBeenCalledTimes(2);
   });
+
+  it('throws the last error after exhausting all retries', async () => {
+    const f = vi.fn().mockRejectedValue(new Error('net'));
+    await expect(
+      fetchJson('https://x', { retries: 3, backoffMs: 1, fetchImpl: f as unknown as typeof fetch }),
+    ).rejects.toThrow('net');
+    expect(f).toHaveBeenCalledTimes(3);
+  });
+
+  it('treats a non-ok response as a failure (and retries)', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: false, status: 500 } as Response);
+    await expect(
+      fetchJson('https://x', { retries: 2, backoffMs: 1, fetchImpl: f as unknown as typeof fetch }),
+    ).rejects.toThrow(/HTTP 500/);
+    expect(f).toHaveBeenCalledTimes(2);
+  });
 });
