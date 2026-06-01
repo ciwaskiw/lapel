@@ -1,0 +1,10 @@
+[
+  {
+    "id": "abc-123",
+    "text": "Staff Frontend Engineer",
+    "categories": { "location": "Remote", "commitment": "Full-time" },
+    "hostedUrl": "https://jobs.lever.co/acme/abc-123",
+    "descriptionPlain": "Own the React platform.",
+    "createdAt": 1716220800000
+  }
+]

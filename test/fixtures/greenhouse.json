@@ -1,0 +1,12 @@
+{
+  "jobs": [
+    {
+      "id": 12345,
+      "title": "Senior Software Engineer",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/12345",
+      "location": { "name": "Remote - US" },
+      "content": "&lt;p&gt;Build &lt;b&gt;TypeScript&lt;/b&gt; services.&lt;/p&gt;",
+      "updated_at": "2026-05-20T12:00:00-04:00"
+    }
+  ]
+}
