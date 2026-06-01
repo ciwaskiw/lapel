@@ -19,7 +19,9 @@ export async function extractPdfText(file: string): Promise<string> {
   return cleanText(Array.isArray(text) ? text.join('\n') : text);
 }
 
-export async function extractProfileSources(dir: string): Promise<{ file: string; text: string }[]> {
+export async function extractProfileSources(
+  dir: string,
+): Promise<{ file: string; text: string }[]> {
   const pdfs = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.pdf'));
   const out: { file: string; text: string }[] = [];
   for (const f of pdfs) out.push({ file: f, text: await extractPdfText(path.join(dir, f)) });
