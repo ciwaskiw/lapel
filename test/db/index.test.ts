@@ -1,18 +1,39 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openDb, migrate, upsertJob, getJobs, getJobById, existingKeys, setStatus, insertApplication, getApplication } from '../../src/db/index.js';
+import {
+  openDb,
+  migrate,
+  upsertJob,
+  getJobs,
+  getJobById,
+  existingKeys,
+  setStatus,
+  insertApplication,
+  getApplication,
+} from '../../src/db/index.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 function sampleJob(over: Partial<NormalizedJob> = {}): NormalizedJob {
   return {
-    source: 'greenhouse', externalId: 'g1', company: 'Acme', title: 'Senior Engineer',
-    url: 'https://acme.example/jobs/g1', location: 'Remote', remote: true,
-    description: 'Build things', postedAt: null, raw: { id: 'g1' }, ...over,
+    source: 'greenhouse',
+    externalId: 'g1',
+    company: 'Acme',
+    title: 'Senior Engineer',
+    url: 'https://acme.example/jobs/g1',
+    location: 'Remote',
+    remote: true,
+    description: 'Build things',
+    postedAt: null,
+    raw: { id: 'g1' },
+    ...over,
   };
 }
 
 describe('db', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('inserts a new job with status=new and score null', () => {
     const r = upsertJob(db, sampleJob());
@@ -34,15 +55,30 @@ describe('db', () => {
   });
 
   it('persists scoring fields when provided', () => {
-    const r = upsertJob(db, sampleJob(), { score: 87, matchedSkills: ['TS'], missingSkills: ['Go'], reasons: 'strong' });
+    const r = upsertJob(db, sampleJob(), {
+      score: 87,
+      matchedSkills: ['TS'],
+      missingSkills: ['Go'],
+      reasons: 'strong',
+    });
     const row = getJobById(db, r.id)!;
     expect(row.score).toBe(87);
     expect(JSON.parse(row.matched_skills!)).toEqual(['TS']);
   });
 
   it('filters by status and minScore', () => {
-    const a = upsertJob(db, sampleJob({ externalId: 'a' }), { score: 90, matchedSkills: [], missingSkills: [], reasons: '' });
-    upsertJob(db, sampleJob({ externalId: 'b' }), { score: 40, matchedSkills: [], missingSkills: [], reasons: '' });
+    const a = upsertJob(db, sampleJob({ externalId: 'a' }), {
+      score: 90,
+      matchedSkills: [],
+      missingSkills: [],
+      reasons: '',
+    });
+    upsertJob(db, sampleJob({ externalId: 'b' }), {
+      score: 40,
+      matchedSkills: [],
+      missingSkills: [],
+      reasons: '',
+    });
     setStatus(db, a.id, 'interested');
     expect(getJobs(db, { status: 'interested' }).map((j) => j.external_id)).toEqual(['a']);
     expect(getJobs(db, { minScore: 80 }).map((j) => j.external_id)).toEqual(['a']);
@@ -50,8 +86,18 @@ describe('db', () => {
 
   it('upserts applications by job_id', () => {
     const r = upsertJob(db, sampleJob());
-    insertApplication(db, { jobId: r.id, resumePath: 'a.md', coverPath: 'b.md', fitNotesPath: 'c.md' });
-    insertApplication(db, { jobId: r.id, resumePath: 'a2.md', coverPath: 'b2.md', fitNotesPath: 'c2.md' });
+    insertApplication(db, {
+      jobId: r.id,
+      resumePath: 'a.md',
+      coverPath: 'b.md',
+      fitNotesPath: 'c.md',
+    });
+    insertApplication(db, {
+      jobId: r.id,
+      resumePath: 'a2.md',
+      coverPath: 'b2.md',
+      fitNotesPath: 'c2.md',
+    });
     expect(getApplication(db, r.id)!.resume_path).toBe('a2.md');
   });
 

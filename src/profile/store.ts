@@ -18,8 +18,21 @@ export function saveProfile(cfg: Config, profile: Profile): void {
 
 export function renderProfileMarkdown(p: Profile): string {
   const lines: string[] = [];
-  lines.push(`# ${p.basics.name}`, '', `**${p.basics.headline}** — ${p.basics.yearsExperience} years`, '', p.basics.summary, '');
-  lines.push('## Skills', '', `**Core:** ${p.skills.core.join(', ')}`, `**Familiar:** ${p.skills.familiar.join(', ')}`, '');
+  lines.push(
+    `# ${p.basics.name}`,
+    '',
+    `**${p.basics.headline}** — ${p.basics.yearsExperience} years`,
+    '',
+    p.basics.summary,
+    '',
+  );
+  lines.push(
+    '## Skills',
+    '',
+    `**Core:** ${p.skills.core.join(', ')}`,
+    `**Familiar:** ${p.skills.familiar.join(', ')}`,
+    '',
+  );
   lines.push('## Experience', '');
   for (const e of p.experience) {
     lines.push(`### ${e.title} — ${e.company} (${e.start}–${e.end ?? 'present'})`);
@@ -28,14 +41,18 @@ export function renderProfileMarkdown(p: Profile): string {
     lines.push('');
   }
   const pr = p.preferences;
-  lines.push('## Preferences', '',
+  lines.push(
+    '## Preferences',
+    '',
     `- Target roles: ${pr.targetRoles.join(', ')}`,
     `- Seniority: ${pr.seniority.join(', ')}`,
     `- Locations: ${pr.locations.join(', ')} (remote: ${pr.remote})`,
     `- Max commute: ${pr.maxCommuteMiles ?? 'n/a'} mi`,
     `- Min base comp: ${pr.minBaseComp ?? 'n/a'}`,
     `- Must have: ${pr.mustHave.join(', ')}`,
-    `- Dealbreakers: ${pr.dealbreakers.join(', ')}`, '');
+    `- Dealbreakers: ${pr.dealbreakers.join(', ')}`,
+    '',
+  );
   if (p.notes.length) lines.push('## Notes', '', ...p.notes.map((n) => `- ${n}`), '');
   return lines.join('\n');
 }

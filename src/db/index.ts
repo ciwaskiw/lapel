@@ -12,16 +12,32 @@ export interface JobScoreFields {
 }
 
 export interface JobRow {
-  id: number; source: string; external_id: string; company: string; title: string;
-  url: string; location: string | null; remote: number | null; description: string;
-  score: number | null; matched_skills: string | null; missing_skills: string | null;
-  score_reasons: string | null; status: JobStatus; posted_at: string | null;
-  first_seen: string; raw_json: string;
+  id: number;
+  source: string;
+  external_id: string;
+  company: string;
+  title: string;
+  url: string;
+  location: string | null;
+  remote: number | null;
+  description: string;
+  score: number | null;
+  matched_skills: string | null;
+  missing_skills: string | null;
+  score_reasons: string | null;
+  status: JobStatus;
+  posted_at: string | null;
+  first_seen: string;
+  raw_json: string;
 }
 
 export interface ApplicationRow {
-  id: number; job_id: number; resume_path: string; cover_path: string;
-  fit_notes_path: string; created_at: string;
+  id: number;
+  job_id: number;
+  resume_path: string;
+  cover_path: string;
+  fit_notes_path: string;
+  created_at: string;
 }
 
 export function openDb(file: string): Database.Database {
@@ -40,9 +56,14 @@ export function upsertJob(
     .get(job.source, job.externalId) as { id: number } | undefined;
 
   const common = {
-    company: job.company, title: job.title, url: job.url, location: job.location,
-    remote: job.remote === null ? null : job.remote ? 1 : 0, description: job.description,
-    posted_at: job.postedAt, raw_json: JSON.stringify(job.raw),
+    company: job.company,
+    title: job.title,
+    url: job.url,
+    location: job.location,
+    remote: job.remote === null ? null : job.remote ? 1 : 0,
+    description: job.description,
+    posted_at: job.postedAt,
+    raw_json: JSON.stringify(job.raw),
     score: score?.score ?? null,
     matched_skills: score ? JSON.stringify(score.matchedSkills) : null,
     missing_skills: score ? JSON.stringify(score.missingSkills) : null,
@@ -61,12 +82,19 @@ export function upsertJob(
     return { id: existing.id, inserted: false };
   }
 
-  const info = db.prepare(
-    `INSERT INTO jobs (source, external_id, company, title, url, location, remote, description,
+  const info = db
+    .prepare(
+      `INSERT INTO jobs (source, external_id, company, title, url, location, remote, description,
         score, matched_skills, missing_skills, score_reasons, status, posted_at, first_seen, raw_json)
      VALUES (@source, @external_id, @company, @title, @url, @location, @remote, @description,
         @score, @matched_skills, @missing_skills, @score_reasons, 'new', @posted_at, @first_seen, @raw_json)`,
-  ).run({ ...common, source: job.source, external_id: job.externalId, first_seen: new Date().toISOString() });
+    )
+    .run({
+      ...common,
+      source: job.source,
+      external_id: job.externalId,
+      first_seen: new Date().toISOString(),
+    });
   return { id: Number(info.lastInsertRowid), inserted: true };
 }
 
@@ -76,8 +104,14 @@ export function getJobs(
 ): JobRow[] {
   const clauses: string[] = [];
   const params: Record<string, unknown> = {};
-  if (filter.status) { clauses.push('status = @status'); params.status = filter.status; }
-  if (filter.minScore != null) { clauses.push('score >= @minScore'); params.minScore = filter.minScore; }
+  if (filter.status) {
+    clauses.push('status = @status');
+    params.status = filter.status;
+  }
+  if (filter.minScore != null) {
+    clauses.push('score >= @minScore');
+    params.minScore = filter.minScore;
+  }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const limit = filter.limit ? 'LIMIT @limit' : '';
   if (filter.limit) params.limit = filter.limit;
@@ -92,7 +126,9 @@ export function getJobById(db: Database.Database, id: number): JobRow | undefine
 
 export function existingKeys(db: Database.Database): { ids: Set<string>; urls: Set<string> } {
   const rows = db.prepare('SELECT source, external_id, url FROM jobs').all() as {
-    source: string; external_id: string; url: string;
+    source: string;
+    external_id: string;
+    url: string;
   }[];
   return {
     ids: new Set(rows.map((r) => `${r.source}:${r.external_id}`)),
@@ -118,5 +154,7 @@ export function insertApplication(
 }
 
 export function getApplication(db: Database.Database, jobId: number): ApplicationRow | undefined {
-  return db.prepare('SELECT * FROM applications WHERE job_id = ?').get(jobId) as ApplicationRow | undefined;
+  return db.prepare('SELECT * FROM applications WHERE job_id = ?').get(jobId) as
+    | ApplicationRow
+    | undefined;
 }

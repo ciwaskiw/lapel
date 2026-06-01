@@ -7,11 +7,30 @@ import { loadProfile, saveProfile, renderProfileMarkdown } from '../../src/profi
 import type { Profile } from '../../src/profile/schema.js';
 
 const sample: Profile = {
-  version: 1, updatedAt: '2026-06-01T00:00:00.000Z',
+  version: 1,
+  updatedAt: '2026-06-01T00:00:00.000Z',
   basics: { name: 'Chris', headline: 'FS Eng', yearsExperience: 8, summary: 'Builds things.' },
   skills: { core: ['TypeScript', 'DynamoDB'], familiar: ['Python'] },
-  experience: [{ company: 'Acme', title: 'Senior Eng', start: '2020-01', end: null, highlights: ['Led X'], tech: ['TS'] }],
-  preferences: { targetRoles: ['Senior FS'], seniority: ['senior'], locations: ['Remote'], remote: 'remote', maxCommuteMiles: null, minBaseComp: null, mustHave: ['TypeScript'], dealbreakers: ['PHP'] },
+  experience: [
+    {
+      company: 'Acme',
+      title: 'Senior Eng',
+      start: '2020-01',
+      end: null,
+      highlights: ['Led X'],
+      tech: ['TS'],
+    },
+  ],
+  preferences: {
+    targetRoles: ['Senior FS'],
+    seniority: ['senior'],
+    locations: ['Remote'],
+    remote: 'remote',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: ['TypeScript'],
+    dealbreakers: ['PHP'],
+  },
   notes: [],
 };
 

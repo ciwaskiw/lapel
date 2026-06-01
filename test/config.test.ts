@@ -14,7 +14,11 @@ describe('loadConfig', () => {
   it('defaults models and honors env overrides', () => {
     expect(loadConfig('/x', {}).models.worker).toBe('claude-sonnet-4-6');
     expect(loadConfig('/x', {}).models.synth).toBe('claude-opus-4-8');
-    const c = loadConfig('/x', { JOB_SCOUT_MODEL_WORKER: 'm1', JOB_SCOUT_MODEL_SYNTH: 'm2', JOB_SCOUT_DEBUG: '1' });
+    const c = loadConfig('/x', {
+      JOB_SCOUT_MODEL_WORKER: 'm1',
+      JOB_SCOUT_MODEL_SYNTH: 'm2',
+      JOB_SCOUT_DEBUG: '1',
+    });
     expect(c.models.worker).toBe('m1');
     expect(c.models.synth).toBe('m2');
     expect(c.debug).toBe(true);
