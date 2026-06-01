@@ -9,6 +9,7 @@ import { renderPipeline, changeStatus } from './commands/pipeline.js';
 import type { JobStatus } from './db/index.js';
 import { createClient } from './agent/client.js';
 import { makeScorer } from './scoring/score.js';
+import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
 
 const program = new Command();
 program
@@ -61,6 +62,11 @@ program
     changeStatus(db, jobId, state as JobStatus);
     console.log(`Job ${jobId} → ${state}`);
   });
+
+const profileCmd = program.command('profile').description('Build and maintain your living profile.');
+profileCmd.command('build').description('Interview + synthesize from PDFs in ./profile/.').action(async () => { await runProfileBuild(loadConfig()); });
+profileCmd.command('update').description('Incrementally edit the profile.').option('--note <text>', 'freeform change to integrate').action(async (o) => { await runProfileUpdate(loadConfig(), o.note); });
+profileCmd.command('show').description('Print profile.md.').action(() => { runProfileShow(loadConfig()); });
 
 program.parseAsync(process.argv).catch((err) => {
   const message = err instanceof Error ? err.message : String(err);
