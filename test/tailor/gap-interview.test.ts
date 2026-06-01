@@ -12,11 +12,9 @@ const profile = {
 
 describe('runGapInterview', () => {
   it('asks each gap question and returns extra experience + proposals', async () => {
-    const identify = vi
-      .fn()
-      .mockResolvedValue({
-        gaps: [{ skill: 'Kafka', question: 'Tell me about your Kafka experience.' }],
-      });
+    const identify = vi.fn().mockResolvedValue({
+      gaps: [{ skill: 'Kafka', question: 'Tell me about your Kafka experience.' }],
+    });
     const ask = vi.fn().mockResolvedValue('Ran Kafka at 1M msgs/sec for 3 years.');
     const { extraExperience, proposals } = await runGapInterview({
       profile,

@@ -7,6 +7,8 @@ Ask only what materially improves job matching. Be concise.`;
 export function interviewUserPrompt(sourceText: string, existing?: string): string {
   return (
     `RESUME / LINKEDIN TEXT:\n${sourceText.slice(0, 12000)}` +
-    (existing ? `\n\nEXISTING PROFILE (refine, don't repeat what's already captured):\n${existing}` : '')
+    (existing
+      ? `\n\nEXISTING PROFILE (refine, don't repeat what's already captured):\n${existing}`
+      : '')
   );
 }

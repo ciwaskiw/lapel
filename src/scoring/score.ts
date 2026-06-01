@@ -13,7 +13,13 @@ type BatchCall = (
   profile: Profile,
   jobs: NormalizedJob[],
 ) => Promise<{
-  scores: { externalId: string; score: number; matchedSkills: string[]; missingSkills: string[]; reasons: string }[];
+  scores: {
+    externalId: string;
+    score: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    reasons: string;
+  }[];
 }>;
 
 const defaultCall: BatchCall = (client, model, profile, jobs) =>
@@ -43,10 +49,18 @@ export function makeScorer(deps: {
         const byId = new Map(scores.map((s) => [s.externalId, s]));
         for (const j of batch) {
           const s = byId.get(j.externalId);
-          if (s) out.set(`${j.source}:${j.externalId}`, { score: s.score, matchedSkills: s.matchedSkills, missingSkills: s.missingSkills, reasons: s.reasons });
+          if (s)
+            out.set(`${j.source}:${j.externalId}`, {
+              score: s.score,
+              matchedSkills: s.matchedSkills,
+              missingSkills: s.missingSkills,
+              reasons: s.reasons,
+            });
         }
       } catch (err) {
-        console.error(`  ! scoring batch failed (${batch.length} jobs), leaving unscored: ${(err as Error).message}`);
+        console.error(
+          `  ! scoring batch failed (${batch.length} jobs), leaving unscored: ${(err as Error).message}`,
+        );
       }
     }
     return out;

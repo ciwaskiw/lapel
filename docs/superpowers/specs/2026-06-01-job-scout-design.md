@@ -5,11 +5,11 @@
 **Author:** Design via Claude Opus 4.8 (brainstorming). Intended implementer: Claude Sonnet 4.6 (separate session).
 
 > **Amendment (2026-06-01, during implementation):** The original design called this a "Claude Agent
-> SDK app" that *consumes* the official `fetch` MCP. During build we found `@anthropic-ai/claude-agent-sdk`
+> SDK app" that _consumes_ the official `fetch` MCP. During build we found `@anthropic-ai/claude-agent-sdk`
 > was unused (all LLM calls go through the `@anthropic-ai/sdk` Messages API with tool use) and it forced
 > a `zod@4` peer-dependency conflict that broke a clean `npm install`. **Decision:** drop the Agent SDK;
 > build on `@anthropic-ai/sdk` (structured tool use + the `update_profile` agentic feedback loop) and
-> *publish* an MCP server via `@modelcontextprotocol/sdk`. URL retrieval (`add`/`tailor`) uses a direct
+> _publish_ an MCP server via `@modelcontextprotocol/sdk`. URL retrieval (`add`/`tailor`) uses a direct
 > `fetch` + `html-to-text`, not the fetch MCP. The agentic + MCP portfolio story is intact (tool-use
 > loops, the living-profile feedback loop, a published MCP server usable from Claude Desktop/Code);
 > only the package framing changed. Sections below that still say "Agent SDK" / "consumes fetch MCP"

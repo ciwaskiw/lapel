@@ -3,8 +3,25 @@ import { makeScorer } from '../../src/scoring/score.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 import type { Profile } from '../../src/profile/schema.js';
 
-const profile = { preferences: {}, skills: { core: [], familiar: [] }, basics: {}, experience: [], notes: [] } as unknown as Profile;
-const job = (id: string): NormalizedJob => ({ source: 'greenhouse', externalId: id, company: 'A', title: 'T', url: 'u', location: null, remote: null, description: 'd', postedAt: null, raw: {} });
+const profile = {
+  preferences: {},
+  skills: { core: [], familiar: [] },
+  basics: {},
+  experience: [],
+  notes: [],
+} as unknown as Profile;
+const job = (id: string): NormalizedJob => ({
+  source: 'greenhouse',
+  externalId: id,
+  company: 'A',
+  title: 'T',
+  url: 'u',
+  location: null,
+  remote: null,
+  description: 'd',
+  postedAt: null,
+  raw: {},
+});
 
 describe('makeScorer', () => {
   it('maps batch results back to job keys', async () => {
@@ -22,7 +39,13 @@ describe('makeScorer', () => {
 
   it('batches by batchSize', async () => {
     const fakeCall = vi.fn().mockImplementation(async (_c, _m, _p, jobs: NormalizedJob[]) => ({
-      scores: jobs.map((j) => ({ externalId: j.externalId, score: 50, matchedSkills: [], missingSkills: [], reasons: '' })),
+      scores: jobs.map((j) => ({
+        externalId: j.externalId,
+        score: 50,
+        matchedSkills: [],
+        missingSkills: [],
+        reasons: '',
+      })),
     }));
     const scorer = makeScorer({ client: {} as never, model: 'm', batchSize: 2, call: fakeCall });
     await scorer([job('a'), job('b'), job('c')], profile);

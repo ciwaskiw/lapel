@@ -36,18 +36,35 @@ export async function runFind(deps: RunFindDeps): Promise<IngestSummary> {
 
   if (summary.dropped > 0) {
     console.error(`Prefilter dropped ${summary.dropped} job(s):`);
-    for (const d of summary.droppedDetail) console.error(`  - ${d.job.title} @ ${d.job.company}: ${d.reason}`);
+    for (const d of summary.droppedDetail)
+      console.error(`  - ${d.job.title} @ ${d.job.company}: ${d.reason}`);
   }
   if (deps.keepDropped) {
     log('\nDropped (not persisted):');
-    log(formatTable(['Title', 'Company', 'Reason'], summary.droppedDetail.map((d) => [d.job.title, d.job.company, d.reason])));
+    log(
+      formatTable(
+        ['Title', 'Company', 'Reason'],
+        summary.droppedDetail.map((d) => [d.job.title, d.job.company, d.reason]),
+      ),
+    );
   }
 
   const rows = getJobs(deps.db, { minScore: deps.minScore, limit: deps.limit });
-  log(`\nFetched ${summary.fetched}, added ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`);
-  log(formatTable(
-    ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
-    rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.status, r.title, r.company, r.location ?? '']),
-  ));
+  log(
+    `\nFetched ${summary.fetched}, added ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`,
+  );
+  log(
+    formatTable(
+      ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
+      rows.map((r) => [
+        String(r.id),
+        r.score == null ? '—' : String(r.score),
+        r.status,
+        r.title,
+        r.company,
+        r.location ?? '',
+      ]),
+    ),
+  );
   return summary;
 }

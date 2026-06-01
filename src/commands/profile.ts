@@ -16,7 +16,9 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
   const client = createClient(cfg);
   const sources = await extractProfileSources(cfg.profileDir);
   if (sources.length === 0)
-    throw new Error(`No PDFs found in ${cfg.profileDir}. Add your resume/LinkedIn export and retry.`);
+    throw new Error(
+      `No PDFs found in ${cfg.profileDir}. Add your resume/LinkedIn export and retry.`,
+    );
   const sourceText = sources.map((s) => `# ${s.file}\n${s.text}`).join('\n\n');
   const existingProfile = loadProfile(cfg);
   const existing = existingProfile ? renderProfileMarkdown(existingProfile) : null;
@@ -26,10 +28,25 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
     sourceText,
     existing,
     generateQuestions: (text, ex) =>
-      structuredCall({ client, model: cfg.models.worker, system: INTERVIEW_SYSTEM, user: interviewUserPrompt(text, ex ?? undefined), toolName: 'emit_questions', schema: QuestionsSchema }),
+      structuredCall({
+        client,
+        model: cfg.models.worker,
+        system: INTERVIEW_SYSTEM,
+        user: interviewUserPrompt(text, ex ?? undefined),
+        toolName: 'emit_questions',
+        schema: QuestionsSchema,
+      }),
     ask,
     synthesize: ({ sourceText: st, transcript, existing: ex }) =>
-      structuredCall({ client, model: cfg.models.synth, system: SYNTH_SYSTEM, user: synthUserPrompt(st, transcript, ex ?? undefined), toolName: 'emit_profile', schema: ProfileSchema, maxTokens: 4096 }),
+      structuredCall({
+        client,
+        model: cfg.models.synth,
+        system: SYNTH_SYSTEM,
+        user: synthUserPrompt(st, transcript, ex ?? undefined),
+        toolName: 'emit_profile',
+        schema: ProfileSchema,
+        maxTokens: 4096,
+      }),
   });
 
   saveProfile(cfg, profile);
@@ -48,9 +65,13 @@ export async function runProfileUpdate(cfg: Config, note?: string): Promise<void
         return `Q: What to change?\nA: ${a}`;
       })();
   const updated = await structuredCall({
-    client, model: cfg.models.synth, system: SYNTH_SYSTEM,
+    client,
+    model: cfg.models.synth,
+    system: SYNTH_SYSTEM,
     user: synthUserPrompt('(see existing profile)', transcript, renderProfileMarkdown(existing)),
-    toolName: 'emit_profile', schema: ProfileSchema, maxTokens: 4096,
+    toolName: 'emit_profile',
+    schema: ProfileSchema,
+    maxTokens: 4096,
   });
   saveProfile(cfg, { ...updated, updatedAt: new Date().toISOString() });
   console.log('Profile updated.');

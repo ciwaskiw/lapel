@@ -33,9 +33,19 @@ export async function runAdd(deps: RunAddDeps): Promise<IngestSummary> {
     for (const d of summary.droppedDetail) console.error(`  - ${d.job.title}: ${d.reason}`);
   }
   if (deps.keepDropped)
-    log(formatTable(['Title', 'Reason'], summary.droppedDetail.map((d) => [d.job.title, d.reason])));
+    log(
+      formatTable(
+        ['Title', 'Reason'],
+        summary.droppedDetail.map((d) => [d.job.title, d.reason]),
+      ),
+    );
   const rows = getJobs(deps.db, {});
   log(`\nAdded ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`);
-  log(formatTable(['ID', 'Score', 'Title', 'Company'], rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.title, r.company])));
+  log(
+    formatTable(
+      ['ID', 'Score', 'Title', 'Company'],
+      rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.title, r.company]),
+    ),
+  );
   return summary;
 }

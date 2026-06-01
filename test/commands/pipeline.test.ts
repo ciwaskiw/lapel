@@ -4,13 +4,24 @@ import { renderPipeline, changeStatus } from '../../src/commands/pipeline.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const j = (id: string): NormalizedJob => ({
-  source: 'greenhouse', externalId: id, company: 'Acme', title: 'Senior Eng', url: `http://${id}`,
-  location: 'Remote', remote: true, description: '', postedAt: null, raw: {},
+  source: 'greenhouse',
+  externalId: id,
+  company: 'Acme',
+  title: 'Senior Eng',
+  url: `http://${id}`,
+  location: 'Remote',
+  remote: true,
+  description: '',
+  postedAt: null,
+  raw: {},
 });
 
 describe('pipeline + status', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('renders a table filtered by status', () => {
     const a = upsertJob(db, j('a'));
