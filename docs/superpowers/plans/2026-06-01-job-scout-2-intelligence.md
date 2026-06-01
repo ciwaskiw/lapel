@@ -10,44 +10,46 @@
 
 > **Prereq:** Plan 1 complete and green. **Read the spec** (`docs/superpowers/specs/2026-06-01-job-scout-design.md`), especially §5, §6.3–6.4, §8, §10.
 >
-> **Deviation flagged for the user (confirm before Task 13):** Spec §10 says "consume the official `fetch` MCP" for URL retrieval. This plan instead retrieves posting text via direct `fetch` + `html-to-text` in `src/fetcher/posting.ts` — deterministic and unit-testable — and concentrates the MCP story on the *published* server (Plan 3) plus wiring the fetch MCP into the agent loops where it genuinely helps. If you require literal fetch-MCP consumption for retrieval, adjust Task 13's `fetcher` to call the MCP via the Agent SDK instead; the module contract stays the same.
+> **Deviation flagged for the user (confirm before Task 13):** Spec §10 says "consume the official `fetch` MCP" for URL retrieval. This plan instead retrieves posting text via direct `fetch` + `html-to-text` in `src/fetcher/posting.ts` — deterministic and unit-testable — and concentrates the MCP story on the _published_ server (Plan 3) plus wiring the fetch MCP into the agent loops where it genuinely helps. If you require literal fetch-MCP consumption for retrieval, adjust Task 13's `fetcher` to call the MCP via the Agent SDK instead; the module contract stays the same.
 >
-> **SDK verification:** the exact `@anthropic-ai/sdk` tool-use surface and `@anthropic-ai/claude-agent-sdk` server helpers should be confirmed against the installed versions (consult the `claude-api` skill if available). Where this plan shows SDK calls, the *shapes* (system prompt, `tools` with `input_schema`, `tool_use`/`tool_result` blocks) are stable; adapt field names only if the installed version differs. Module signatures must not change.
+> **SDK verification:** the exact `@anthropic-ai/sdk` tool-use surface and `@anthropic-ai/claude-agent-sdk` server helpers should be confirmed against the installed versions (consult the `claude-api` skill if available). Where this plan shows SDK calls, the _shapes_ (system prompt, `tools` with `input_schema`, `tool_use`/`tool_result` blocks) are stable; adapt field names only if the installed version differs. Module signatures must not change.
 
 ---
 
 ## File Structure (Plan 2)
 
-| File | Responsibility |
-|------|----------------|
-| `src/agent/llm.ts` | `structuredCall<T>()` — forced-tool structured output + zod validate + repair retry |
-| `src/agent/client.ts` | Anthropic client factory; reads key/model from config |
-| `src/agent/prompts/score.ts` | scoring system prompt + rubric text |
-| `src/agent/prompts/interview.ts` | interview question-generation prompt |
-| `src/agent/prompts/synthesize-profile.ts` | profile synthesis prompt |
-| `src/agent/prompts/tailor.ts` | tailoring prompt (no-fabrication contract) |
-| `src/agent/prompts/tailor-gap-interview.ts` | gap identification + question generation |
-| `src/agent/tools/update-profile.ts` | the `update_profile` tool definition + apply logic |
-| `src/scoring/rubric.ts` | rubric constant + `JobScore` zod schema |
-| `src/scoring/score.ts` | `scoreJobs()` Scorer using `structuredCall` (batched) |
-| `src/profile/build.ts` | interview orchestration + synthesis |
-| `src/profile/interview.ts` | readline Q&A driver (injectable prompter) |
-| `src/fetcher/posting.ts` | `fetchPostingText(url)` → `{ title?, company?, text }` |
-| `src/tailor/tailor.ts` | `tailorPosting()` → write docs + record application |
-| `src/commands/{profile,add,tailor}.ts` | command handlers |
-| Modify: `src/commands/find.ts`, `src/cli.ts`, `eslint.config.js` | wire scoring + new commands; agent boundary override |
+| File                                                             | Responsibility                                                                      |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/agent/llm.ts`                                               | `structuredCall<T>()` — forced-tool structured output + zod validate + repair retry |
+| `src/agent/client.ts`                                            | Anthropic client factory; reads key/model from config                               |
+| `src/agent/prompts/score.ts`                                     | scoring system prompt + rubric text                                                 |
+| `src/agent/prompts/interview.ts`                                 | interview question-generation prompt                                                |
+| `src/agent/prompts/synthesize-profile.ts`                        | profile synthesis prompt                                                            |
+| `src/agent/prompts/tailor.ts`                                    | tailoring prompt (no-fabrication contract)                                          |
+| `src/agent/prompts/tailor-gap-interview.ts`                      | gap identification + question generation                                            |
+| `src/agent/tools/update-profile.ts`                              | the `update_profile` tool definition + apply logic                                  |
+| `src/scoring/rubric.ts`                                          | rubric constant + `JobScore` zod schema                                             |
+| `src/scoring/score.ts`                                           | `scoreJobs()` Scorer using `structuredCall` (batched)                               |
+| `src/profile/build.ts`                                           | interview orchestration + synthesis                                                 |
+| `src/profile/interview.ts`                                       | readline Q&A driver (injectable prompter)                                           |
+| `src/fetcher/posting.ts`                                         | `fetchPostingText(url)` → `{ title?, company?, text }`                              |
+| `src/tailor/tailor.ts`                                           | `tailorPosting()` → write docs + record application                                 |
+| `src/commands/{profile,add,tailor}.ts`                           | command handlers                                                                    |
+| Modify: `src/commands/find.ts`, `src/cli.ts`, `eslint.config.js` | wire scoring + new commands; agent boundary override                                |
 
 ---
 
 ## Task 10: Anthropic deps + `structuredCall` primitive + eslint override
 
 **Files:**
+
 - Modify: `package.json` (deps)
 - Create: `src/agent/client.ts`, `src/agent/llm.ts`, `test/agent/llm.test.ts`
 
 - [ ] **Step 1: Add deps**
 
 Run:
+
 ```bash
 npm install @anthropic-ai/sdk @anthropic-ai/claude-agent-sdk zod-to-json-schema
 ```
@@ -73,6 +75,7 @@ export function createClient(cfg: Config): Anthropic {
 - [ ] **Step 4: Write the failing test for `structuredCall` (mock the client)**
 
 `test/agent/llm.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
@@ -86,16 +89,31 @@ const toolUse = (input: unknown) => ({
 describe('structuredCall', () => {
   it('returns validated tool input', async () => {
     const client = { messages: { create: vi.fn().mockResolvedValue(toolUse({ score: 9 })) } };
-    const out = await structuredCall({ client: client as never, model: 'm', system: 's', user: 'u', toolName: 'emit', schema });
+    const out = await structuredCall({
+      client: client as never,
+      model: 'm',
+      system: 's',
+      user: 'u',
+      toolName: 'emit',
+      schema,
+    });
     expect(out).toEqual({ score: 9 });
   });
 
   it('repairs once on invalid output then succeeds', async () => {
-    const create = vi.fn()
+    const create = vi
+      .fn()
       .mockResolvedValueOnce(toolUse({ score: 'NaN' })) // invalid
-      .mockResolvedValueOnce(toolUse({ score: 7 }));    // repaired
+      .mockResolvedValueOnce(toolUse({ score: 7 })); // repaired
     const client = { messages: { create } };
-    const out = await structuredCall({ client: client as never, model: 'm', system: 's', user: 'u', toolName: 'emit', schema });
+    const out = await structuredCall({
+      client: client as never,
+      model: 'm',
+      system: 's',
+      user: 'u',
+      toolName: 'emit',
+      schema,
+    });
     expect(out).toEqual({ score: 7 });
     expect(create).toHaveBeenCalledTimes(2);
   });
@@ -103,8 +121,16 @@ describe('structuredCall', () => {
   it('throws after a failed repair', async () => {
     const create = vi.fn().mockResolvedValue(toolUse({ score: 'x' }));
     const client = { messages: { create } };
-    await expect(structuredCall({ client: client as never, model: 'm', system: 's', user: 'u', toolName: 'emit', schema }))
-      .rejects.toThrow(/validation/i);
+    await expect(
+      structuredCall({
+        client: client as never,
+        model: 'm',
+        system: 's',
+        user: 'u',
+        toolName: 'emit',
+        schema,
+      }),
+    ).rejects.toThrow(/validation/i);
     expect(create).toHaveBeenCalledTimes(2);
   });
 });
@@ -130,7 +156,11 @@ export interface StructuredCallArgs<T> {
 export async function structuredCall<T>(args: StructuredCallArgs<T>): Promise<T> {
   const { client, model, system, user, toolName, schema, maxTokens = 2048 } = args;
   const inputSchema = zodToJsonSchema(schema, { target: 'openApi3' }) as Record<string, unknown>;
-  const tool = { name: toolName, description: `Emit the result as structured ${toolName} data.`, input_schema: inputSchema };
+  const tool = {
+    name: toolName,
+    description: `Emit the result as structured ${toolName} data.`,
+    input_schema: inputSchema,
+  };
 
   const call = (extra: string) =>
     client.messages.create({
@@ -143,11 +173,18 @@ export async function structuredCall<T>(args: StructuredCallArgs<T>): Promise<T>
     });
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await call(attempt === 0 ? '' : '\n\nYour previous response failed schema validation. Re-emit valid data.');
-    const block = (res.content as { type: string; name?: string; input?: unknown }[]).find((b) => b.type === 'tool_use');
+    const res = await call(
+      attempt === 0
+        ? ''
+        : '\n\nYour previous response failed schema validation. Re-emit valid data.',
+    );
+    const block = (res.content as { type: string; name?: string; input?: unknown }[]).find(
+      (b) => b.type === 'tool_use',
+    );
     const parsed = schema.safeParse(block?.input);
     if (parsed.success) return parsed.data;
-    if (attempt === 1) throw new Error(`Structured output failed validation: ${parsed.error.message}`);
+    if (attempt === 1)
+      throw new Error(`Structured output failed validation: ${parsed.error.message}`);
   }
   throw new Error('unreachable');
 }
@@ -157,6 +194,7 @@ export async function structuredCall<T>(args: StructuredCallArgs<T>): Promise<T>
 
 Run: `npx vitest run test/agent/llm.test.ts && npm run lint`
 Expected: PASS; lint clean (agent override lets the SDK import through, core boundary intact).
+
 ```bash
 git add package.json src/agent test/agent/llm.test.ts
 git commit -m "feat(agent): structuredCall primitive (forced tool + zod validate + repair)"
@@ -167,6 +205,7 @@ git commit -m "feat(agent): structuredCall primitive (forced tool + zod validate
 ## Task 11: Scoring (`scoring/rubric.ts`, `scoring/score.ts`) wired into `find`
 
 **Files:**
+
 - Create: `src/scoring/rubric.ts`, `src/agent/prompts/score.ts`, `src/scoring/score.ts`, `test/scoring/score.test.ts`
 - Modify: `src/commands/find.ts` cli wiring (replace `score: null` with real scorer unless `--no-score`)
 
@@ -207,7 +246,10 @@ export const SCORE_SYSTEM = `You are a precise technical recruiter scoring job f
 
 export function scoreUserPrompt(profile: Profile, jobs: NormalizedJob[]): string {
   const jobBlocks = jobs
-    .map((j) => `### externalId: ${j.externalId}\nTitle: ${j.title}\nCompany: ${j.company}\nLocation: ${j.location ?? 'n/a'} (remote: ${j.remote ?? 'unknown'})\n${j.description.slice(0, 2500)}`)
+    .map(
+      (j) =>
+        `### externalId: ${j.externalId}\nTitle: ${j.title}\nCompany: ${j.company}\nLocation: ${j.location ?? 'n/a'} (remote: ${j.remote ?? 'unknown'})\n${j.description.slice(0, 2500)}`,
+    )
     .join('\n\n');
   return `CANDIDATE PROFILE:\n${renderProfileMarkdown(profile)}\n\nJOBS TO SCORE (return one score object per externalId):\n${jobBlocks}`;
 }
@@ -216,14 +258,32 @@ export function scoreUserPrompt(profile: Profile, jobs: NormalizedJob[]): string
 - [ ] **Step 3: Write the failing test for `scoreJobs` (mock `structuredCall`)**
 
 `test/scoring/score.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { makeScorer } from '../../src/scoring/score.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 import type { Profile } from '../../src/profile/schema.js';
 
-const profile = { preferences: {}, skills: { core: [], familiar: [] }, basics: {}, experience: [], notes: [] } as unknown as Profile;
-const job = (id: string): NormalizedJob => ({ source: 'greenhouse', externalId: id, company: 'A', title: 'T', url: 'u', location: null, remote: null, description: 'd', postedAt: null, raw: {} });
+const profile = {
+  preferences: {},
+  skills: { core: [], familiar: [] },
+  basics: {},
+  experience: [],
+  notes: [],
+} as unknown as Profile;
+const job = (id: string): NormalizedJob => ({
+  source: 'greenhouse',
+  externalId: id,
+  company: 'A',
+  title: 'T',
+  url: 'u',
+  location: null,
+  remote: null,
+  description: 'd',
+  postedAt: null,
+  raw: {},
+});
 
 describe('makeScorer', () => {
   it('maps batch results back to job keys', async () => {
@@ -241,7 +301,13 @@ describe('makeScorer', () => {
 
   it('batches by batchSize', async () => {
     const fakeCall = vi.fn().mockImplementation(async (_c, _m, _p, jobs: NormalizedJob[]) => ({
-      scores: jobs.map((j) => ({ externalId: j.externalId, score: 50, matchedSkills: [], missingSkills: [], reasons: '' })),
+      scores: jobs.map((j) => ({
+        externalId: j.externalId,
+        score: 50,
+        matchedSkills: [],
+        missingSkills: [],
+        reasons: '',
+      })),
     }));
     const scorer = makeScorer({ client: {} as never, model: 'm', batchSize: 2, call: fakeCall });
     await scorer([job('a'), job('b'), job('c')], profile);
@@ -263,14 +329,36 @@ import type { NormalizedJob } from '../sources/types.js';
 import type { Profile } from '../profile/schema.js';
 
 type BatchCall = (
-  client: Anthropic, model: string, profile: Profile, jobs: NormalizedJob[],
-) => Promise<{ scores: { externalId: string; score: number; matchedSkills: string[]; missingSkills: string[]; reasons: string }[] }>;
+  client: Anthropic,
+  model: string,
+  profile: Profile,
+  jobs: NormalizedJob[],
+) => Promise<{
+  scores: {
+    externalId: string;
+    score: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    reasons: string;
+  }[];
+}>;
 
 const defaultCall: BatchCall = (client, model, profile, jobs) =>
-  structuredCall({ client, model, system: SCORE_SYSTEM, user: scoreUserPrompt(profile, jobs), toolName: 'emit_scores', schema: JobScoreBatchSchema, maxTokens: 4096 });
+  structuredCall({
+    client,
+    model,
+    system: SCORE_SYSTEM,
+    user: scoreUserPrompt(profile, jobs),
+    toolName: 'emit_scores',
+    schema: JobScoreBatchSchema,
+    maxTokens: 4096,
+  });
 
 export function makeScorer(deps: {
-  client: Anthropic; model: string; batchSize: number; call?: BatchCall;
+  client: Anthropic;
+  model: string;
+  batchSize: number;
+  call?: BatchCall;
 }): Scorer {
   const call = deps.call ?? defaultCall;
   return async (jobs, profile) => {
@@ -282,10 +370,18 @@ export function makeScorer(deps: {
         const byId = new Map(scores.map((s) => [s.externalId, s]));
         for (const j of batch) {
           const s = byId.get(j.externalId);
-          if (s) out.set(`${j.source}:${j.externalId}`, { score: s.score, matchedSkills: s.matchedSkills, missingSkills: s.missingSkills, reasons: s.reasons });
+          if (s)
+            out.set(`${j.source}:${j.externalId}`, {
+              score: s.score,
+              matchedSkills: s.matchedSkills,
+              missingSkills: s.missingSkills,
+              reasons: s.reasons,
+            });
         }
       } catch (err) {
-        console.error(`  ! scoring batch failed (${batch.length} jobs), leaving unscored: ${(err as Error).message}`);
+        console.error(
+          `  ! scoring batch failed (${batch.length} jobs), leaving unscored: ${(err as Error).message}`,
+        );
       }
     }
     return out;
@@ -296,6 +392,7 @@ export function makeScorer(deps: {
 - [ ] **Step 5: Run green, then wire scoring into the `find` CLI action**
 
 In `src/cli.ts` `find` action, replace the `score: null` wiring:
+
 ```ts
 import { createClient } from './agent/client.js';
 import { makeScorer } from './scoring/score.js';
@@ -311,6 +408,7 @@ import { makeScorer } from './scoring/score.js';
   await runFind({ db, profile, watchlist, score, keepDropped: opts.keepDropped, limit: opts.limit, minScore: opts.minScore });
 });
 ```
+
 > commander sets `opts.score === false` when `--no-score` is passed (negated boolean option). The deterministic `runFind` test from Plan 1 still passes (it injects `score: null`).
 
 Run: `npx vitest run test/scoring && npm run build && npm run lint`
@@ -328,12 +426,14 @@ git commit -m "feat(scoring): batched rubric scoring wired into find"
 ## Task 12: `profile build` / `update` / `show`
 
 **Files:**
+
 - Create: `src/agent/prompts/interview.ts`, `src/agent/prompts/synthesize-profile.ts`, `src/profile/interview.ts`, `src/profile/build.ts`, `src/commands/profile.ts`, `test/profile/build.test.ts`
 - Modify: `src/cli.ts` (register `profile`)
 
 - [ ] **Step 1: Implement the prompts**
 
 `src/agent/prompts/interview.ts`:
+
 ```ts
 export const INTERVIEW_SYSTEM = `You are an expert career coach preparing a job-search profile.
 Given a candidate's resume/LinkedIn text, produce up to 8 high-value interview questions that
@@ -342,12 +442,17 @@ compensation floor, must-have technologies, dealbreakers, and any thin spots in 
 Ask only what materially improves job matching. Be concise.`;
 
 export function interviewUserPrompt(sourceText: string, existing?: string): string {
-  return `RESUME / LINKEDIN TEXT:\n${sourceText.slice(0, 12000)}` +
-    (existing ? `\n\nEXISTING PROFILE (refine, don't repeat what's already captured):\n${existing}` : '');
+  return (
+    `RESUME / LINKEDIN TEXT:\n${sourceText.slice(0, 12000)}` +
+    (existing
+      ? `\n\nEXISTING PROFILE (refine, don't repeat what's already captured):\n${existing}`
+      : '')
+  );
 }
 ```
 
 `src/agent/prompts/synthesize-profile.ts`:
+
 ```ts
 export const SYNTH_SYSTEM = `You synthesize a structured candidate profile from source documents
 and interview answers. Use ONLY information present in the inputs — never invent employers, titles,
@@ -355,24 +460,41 @@ dates, or skills. Where the candidate gave preferences (location, comp, remote, 
 record them precisely. Produce the profile via the emit_profile tool.`;
 
 export function synthUserPrompt(sourceText: string, transcript: string, existing?: string): string {
-  return `SOURCE DOCUMENTS:\n${sourceText.slice(0, 14000)}\n\nINTERVIEW (Q/A):\n${transcript}` +
-    (existing ? `\n\nEXISTING PROFILE (merge; keep confirmed fields unless changed):\n${existing}` : '');
+  return (
+    `SOURCE DOCUMENTS:\n${sourceText.slice(0, 14000)}\n\nINTERVIEW (Q/A):\n${transcript}` +
+    (existing
+      ? `\n\nEXISTING PROFILE (merge; keep confirmed fields unless changed):\n${existing}`
+      : '')
+  );
 }
 ```
 
 - [ ] **Step 2: Write the failing test for `buildProfile` (mock LLM + prompter)**
 
 `test/profile/build.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { buildProfile } from '../../src/profile/build.js';
 import type { Profile } from '../../src/profile/schema.js';
 
 const synthesized: Profile = {
-  version: 1, updatedAt: '2026-06-01T00:00:00.000Z',
+  version: 1,
+  updatedAt: '2026-06-01T00:00:00.000Z',
   basics: { name: 'Chris', headline: 'FS Eng', yearsExperience: 8, summary: 's' },
-  skills: { core: ['TS'], familiar: [] }, experience: [], notes: [],
-  preferences: { targetRoles: ['Senior FS'], seniority: ['senior'], locations: ['Remote'], remote: 'remote', maxCommuteMiles: 30, minBaseComp: null, mustHave: ['TypeScript'], dealbreakers: [] },
+  skills: { core: ['TS'], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {
+    targetRoles: ['Senior FS'],
+    seniority: ['senior'],
+    locations: ['Remote'],
+    remote: 'remote',
+    maxCommuteMiles: 30,
+    minBaseComp: null,
+    mustHave: ['TypeScript'],
+    dealbreakers: [],
+  },
 };
 
 describe('buildProfile', () => {
@@ -382,8 +504,11 @@ describe('buildProfile', () => {
     const synth = vi.fn().mockResolvedValue(synthesized);
 
     const profile = await buildProfile({
-      sourceText: 'resume text', existing: null,
-      generateQuestions: genQuestions, ask, synthesize: synth,
+      sourceText: 'resume text',
+      existing: null,
+      generateQuestions: genQuestions,
+      ask,
+      synthesize: synth,
     });
 
     expect(ask).toHaveBeenCalledTimes(2);
@@ -398,6 +523,7 @@ describe('buildProfile', () => {
 - [ ] **Step 3: Run red, implement `src/profile/interview.ts` and `src/profile/build.ts`**
 
 `src/profile/interview.ts` (readline prompter — the injectable `ask`):
+
 ```ts
 import { createInterface } from 'node:readline/promises';
 
@@ -415,15 +541,23 @@ export function closePrompter(): void {
 ```
 
 `src/profile/build.ts`:
+
 ```ts
 import type { Profile } from './schema.js';
 
 export interface BuildProfileDeps {
   sourceText: string;
-  existing: string | null;                       // rendered existing profile.md, if any
-  generateQuestions: (sourceText: string, existing: string | null) => Promise<{ questions: string[] }>;
+  existing: string | null; // rendered existing profile.md, if any
+  generateQuestions: (
+    sourceText: string,
+    existing: string | null,
+  ) => Promise<{ questions: string[] }>;
   ask: (question: string) => Promise<string>;
-  synthesize: (args: { sourceText: string; transcript: string; existing: string | null }) => Promise<Profile>;
+  synthesize: (args: {
+    sourceText: string;
+    transcript: string;
+    existing: string | null;
+  }) => Promise<Profile>;
 }
 
 export async function buildProfile(deps: BuildProfileDeps): Promise<Profile> {
@@ -433,7 +567,11 @@ export async function buildProfile(deps: BuildProfileDeps): Promise<Profile> {
     const a = await deps.ask(q);
     qa.push(`Q: ${q}\nA: ${a || '(skipped)'}`);
   }
-  const profile = await deps.synthesize({ sourceText: deps.sourceText, transcript: qa.join('\n\n'), existing: deps.existing });
+  const profile = await deps.synthesize({
+    sourceText: deps.sourceText,
+    transcript: qa.join('\n\n'),
+    existing: deps.existing,
+  });
   return { ...profile, updatedAt: new Date().toISOString() };
 }
 ```
@@ -458,19 +596,38 @@ const QuestionsSchema = z.object({ questions: z.array(z.string()).max(8) });
 export async function runProfileBuild(cfg: Config): Promise<void> {
   const client = createClient(cfg);
   const sources = await extractProfileSources(cfg.profileDir);
-  if (sources.length === 0) throw new Error(`No PDFs found in ${cfg.profileDir}. Add your resume/LinkedIn export and retry.`);
+  if (sources.length === 0)
+    throw new Error(
+      `No PDFs found in ${cfg.profileDir}. Add your resume/LinkedIn export and retry.`,
+    );
   const sourceText = sources.map((s) => `# ${s.file}\n${s.text}`).join('\n\n');
   const existingProfile = loadProfile(cfg);
   const existing = existingProfile ? renderProfileMarkdown(existingProfile) : null;
   const ask = createPrompter();
 
   const profile = await buildProfile({
-    sourceText, existing,
+    sourceText,
+    existing,
     generateQuestions: (text, ex) =>
-      structuredCall({ client, model: cfg.models.worker, system: INTERVIEW_SYSTEM, user: interviewUserPrompt(text, ex ?? undefined), toolName: 'emit_questions', schema: QuestionsSchema }),
+      structuredCall({
+        client,
+        model: cfg.models.worker,
+        system: INTERVIEW_SYSTEM,
+        user: interviewUserPrompt(text, ex ?? undefined),
+        toolName: 'emit_questions',
+        schema: QuestionsSchema,
+      }),
     ask,
     synthesize: ({ sourceText, transcript, existing }) =>
-      structuredCall({ client, model: cfg.models.synth, system: SYNTH_SYSTEM, user: synthUserPrompt(sourceText, transcript, existing ?? undefined), toolName: 'emit_profile', schema: ProfileSchema, maxTokens: 4096 }),
+      structuredCall({
+        client,
+        model: cfg.models.synth,
+        system: SYNTH_SYSTEM,
+        user: synthUserPrompt(sourceText, transcript, existing ?? undefined),
+        toolName: 'emit_profile',
+        schema: ProfileSchema,
+        maxTokens: 4096,
+      }),
   });
 
   saveProfile(cfg, profile);
@@ -481,15 +638,21 @@ export async function runProfileUpdate(cfg: Config, note?: string): Promise<void
   const existing = loadProfile(cfg);
   if (!existing) throw new Error('No profile yet. Run `job-scout profile build` first.');
   const client = createClient(cfg);
-  const transcript = note ? `Q: Apply this update.\nA: ${note}` : await (async () => {
-    const ask = createPrompter();
-    const a = await ask('What would you like to change or add to your profile?');
-    return `Q: What to change?\nA: ${a}`;
-  })();
+  const transcript = note
+    ? `Q: Apply this update.\nA: ${note}`
+    : await (async () => {
+        const ask = createPrompter();
+        const a = await ask('What would you like to change or add to your profile?');
+        return `Q: What to change?\nA: ${a}`;
+      })();
   const updated = await structuredCall({
-    client, model: cfg.models.synth, system: SYNTH_SYSTEM,
+    client,
+    model: cfg.models.synth,
+    system: SYNTH_SYSTEM,
     user: synthUserPrompt('(see existing profile)', transcript, renderProfileMarkdown(existing)),
-    toolName: 'emit_profile', schema: ProfileSchema, maxTokens: 4096,
+    toolName: 'emit_profile',
+    schema: ProfileSchema,
+    maxTokens: 4096,
   });
   saveProfile(cfg, { ...updated, updatedAt: new Date().toISOString() });
   console.log('Profile updated.');
@@ -508,9 +671,25 @@ export function runProfileShow(cfg: Config): void {
 import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
 
 const profile = program.command('profile').description('Build and maintain your living profile.');
-profile.command('build').description('Interview + synthesize from PDFs in ./profile/.').action(async () => { await runProfileBuild(loadConfig()); });
-profile.command('update').description('Incrementally edit the profile.').option('--note <text>', 'freeform change to integrate').action(async (o) => { await runProfileUpdate(loadConfig(), o.note); });
-profile.command('show').description('Print profile.md.').action(() => { runProfileShow(loadConfig()); });
+profile
+  .command('build')
+  .description('Interview + synthesize from PDFs in ./profile/.')
+  .action(async () => {
+    await runProfileBuild(loadConfig());
+  });
+profile
+  .command('update')
+  .description('Incrementally edit the profile.')
+  .option('--note <text>', 'freeform change to integrate')
+  .action(async (o) => {
+    await runProfileUpdate(loadConfig(), o.note);
+  });
+profile
+  .command('show')
+  .description('Print profile.md.')
+  .action(() => {
+    runProfileShow(loadConfig());
+  });
 ```
 
 Run: `npm test && npm run lint && npm run build && node dist/cli.js profile --help`
@@ -528,6 +707,7 @@ git commit -m "feat(profile): interactive build/update/show with interview + syn
 ## Task 13: `add` command — URL ingest
 
 **Files:**
+
 - Create: `src/fetcher/posting.ts`, `src/commands/add.ts`, `test/fetcher/posting.test.ts`, `test/commands/add.test.ts`
 - Modify: `src/cli.ts` (register `add`)
 
@@ -536,15 +716,20 @@ git commit -m "feat(profile): interactive build/update/show with interview + syn
 - [ ] **Step 1: Write the failing test for `fetchPostingText` (mock fetch)**
 
 `test/fetcher/posting.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { fetchPostingText, urlToNormalizedJob } from '../../src/fetcher/posting.js';
 
 describe('fetchPostingText', () => {
   it('extracts readable text and a title from html', async () => {
-    const html = '<html><head><title>Senior Engineer at Acme</title></head><body><h1>Senior Engineer</h1><p>We use TypeScript.</p></body></html>';
+    const html =
+      '<html><head><title>Senior Engineer at Acme</title></head><body><h1>Senior Engineer</h1><p>We use TypeScript.</p></body></html>';
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, text: async () => html } as Response);
-    const r = await fetchPostingText('https://acme.example/jobs/1', fetchImpl as unknown as typeof fetch);
+    const r = await fetchPostingText(
+      'https://acme.example/jobs/1',
+      fetchImpl as unknown as typeof fetch,
+    );
     expect(r.title).toContain('Senior Engineer');
     expect(r.text).toContain('TypeScript');
   });
@@ -552,8 +737,16 @@ describe('fetchPostingText', () => {
 
 describe('urlToNormalizedJob', () => {
   it('produces a stable externalId from the url', () => {
-    const a = urlToNormalizedJob('https://acme.example/jobs/1', { title: 'T', company: 'Acme', text: 'desc' });
-    const b = urlToNormalizedJob('https://acme.example/jobs/1', { title: 'T', company: 'Acme', text: 'desc' });
+    const a = urlToNormalizedJob('https://acme.example/jobs/1', {
+      title: 'T',
+      company: 'Acme',
+      text: 'desc',
+    });
+    const b = urlToNormalizedJob('https://acme.example/jobs/1', {
+      title: 'T',
+      company: 'Acme',
+      text: 'desc',
+    });
     expect(a.externalId).toBe(b.externalId);
     expect(a.source).toBe('url');
     expect(a.description).toBe('desc');
@@ -568,10 +761,19 @@ import { createHash } from 'node:crypto';
 import { stripHtml } from '../sources/http.js';
 import type { NormalizedJob } from '../sources/types.js';
 
-export interface PostingText { title?: string; company?: string; text: string }
+export interface PostingText {
+  title?: string;
+  company?: string;
+  text: string;
+}
 
-export async function fetchPostingText(url: string, fetchImpl: typeof fetch = fetch): Promise<PostingText> {
-  const res = await fetchImpl(url, { headers: { 'user-agent': 'job-scout/0.1 (+https://github.com/)' } });
+export async function fetchPostingText(
+  url: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PostingText> {
+  const res = await fetchImpl(url, {
+    headers: { 'user-agent': 'job-scout/0.1 (+https://github.com/)' },
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   const html = await res.text();
   const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim();
@@ -581,9 +783,16 @@ export async function fetchPostingText(url: string, fetchImpl: typeof fetch = fe
 export function urlToNormalizedJob(url: string, posting: PostingText): NormalizedJob {
   const externalId = createHash('sha1').update(url).digest('hex').slice(0, 16);
   return {
-    source: 'url', externalId, company: posting.company ?? new URL(url).hostname,
-    title: posting.title ?? 'Untitled posting', url, location: null, remote: null,
-    description: posting.text, postedAt: null, raw: { url, fetchedAt: new Date().toISOString() },
+    source: 'url',
+    externalId,
+    company: posting.company ?? new URL(url).hostname,
+    title: posting.title ?? 'Untitled posting',
+    url,
+    location: null,
+    remote: null,
+    description: posting.text,
+    postedAt: null,
+    raw: { url, fetchedAt: new Date().toISOString() },
   };
 }
 ```
@@ -593,25 +802,45 @@ export function urlToNormalizedJob(url: string, posting: PostingText): Normalize
 - [ ] **Step 3: Write the failing test for `runAdd` (mock fetcher + temp db)**
 
 `test/commands/add.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openDb, migrate, getJobs } from '../../src/db/index.js';
 import { runAdd } from '../../src/commands/add.js';
 import type { Profile } from '../../src/profile/schema.js';
 
-const profile = { preferences: { dealbreakers: [], mustHave: [], seniority: [], remote: 'any', targetRoles: [], locations: [], maxCommuteMiles: null, minBaseComp: null } } as unknown as Profile;
+const profile = {
+  preferences: {
+    dealbreakers: [],
+    mustHave: [],
+    seniority: [],
+    remote: 'any',
+    targetRoles: [],
+    locations: [],
+    maxCommuteMiles: null,
+    minBaseComp: null,
+  },
+} as unknown as Profile;
 
 describe('runAdd', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('fetches each url, normalizes, and ingests', async () => {
-    const fetchPosting = vi.fn()
+    const fetchPosting = vi
+      .fn()
       .mockResolvedValueOnce({ title: 'Senior Eng', text: 'TypeScript role' })
       .mockResolvedValueOnce({ title: 'Staff Eng', text: 'Node role' });
     const summary = await runAdd({
-      db, profile, urls: ['https://a.example/1', 'https://b.example/2'],
-      score: null, fetchPosting, log: () => {},
+      db,
+      profile,
+      urls: ['https://a.example/1', 'https://b.example/2'],
+      score: null,
+      fetchPosting,
+      log: () => {},
     });
     expect(fetchPosting).toHaveBeenCalledTimes(2);
     expect(summary.added).toBe(2);
@@ -619,10 +848,18 @@ describe('runAdd', () => {
   });
 
   it('isolates a failing url', async () => {
-    const fetchPosting = vi.fn()
+    const fetchPosting = vi
+      .fn()
       .mockRejectedValueOnce(new Error('404'))
       .mockResolvedValueOnce({ title: 'OK', text: 'desc' });
-    const summary = await runAdd({ db, profile, urls: ['x', 'y'], score: null, fetchPosting, log: () => {} });
+    const summary = await runAdd({
+      db,
+      profile,
+      urls: ['x', 'y'],
+      score: null,
+      fetchPosting,
+      log: () => {},
+    });
     expect(summary.added).toBe(1);
   });
 });
@@ -665,10 +902,21 @@ export async function runAdd(deps: RunAddDeps): Promise<IngestSummary> {
     console.error(`Prefilter dropped ${summary.dropped} job(s):`);
     for (const d of summary.droppedDetail) console.error(`  - ${d.job.title}: ${d.reason}`);
   }
-  if (deps.keepDropped) log(formatTable(['Title', 'Reason'], summary.droppedDetail.map((d) => [d.job.title, d.reason])));
+  if (deps.keepDropped)
+    log(
+      formatTable(
+        ['Title', 'Reason'],
+        summary.droppedDetail.map((d) => [d.job.title, d.reason]),
+      ),
+    );
   const rows = getJobs(deps.db, {});
   log(`\nAdded ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`);
-  log(formatTable(['ID', 'Score', 'Title', 'Company'], rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.title, r.company])));
+  log(
+    formatTable(
+      ['ID', 'Score', 'Title', 'Company'],
+      rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.title, r.company]),
+    ),
+  );
   return summary;
 }
 ```
@@ -690,17 +938,31 @@ program
     const cfg = loadConfig();
     const profile = loadProfile(cfg);
     if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
-    const db = openDb(cfg.dbPath); migrate(db);
-    const fromFile = opts.urls ? readFileSync(opts.urls, 'utf8').split('\n').map((s) => s.trim()).filter(Boolean) : [];
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    const fromFile = opts.urls
+      ? readFileSync(opts.urls, 'utf8')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
     const urls = [...urlArgs, ...fromFile];
     if (urls.length === 0) throw new Error('Provide URLs as arguments or via --urls <file>.');
-    const score = opts.score === false ? null : makeScorer({ client: createClient(cfg), model: cfg.models.worker, batchSize: cfg.scoringBatchSize });
+    const score =
+      opts.score === false
+        ? null
+        : makeScorer({
+            client: createClient(cfg),
+            model: cfg.models.worker,
+            batchSize: cfg.scoringBatchSize,
+          });
     await runAdd({ db, profile, urls, score, keepDropped: opts.keepDropped });
   });
 ```
 
 Run: `npm test && npm run lint && npm run build`
 Expected: green / clean / ok.
+
 ```bash
 git add src/fetcher src/commands/add.ts src/cli.ts test/fetcher test/commands/add.test.ts
 git commit -m "feat(add): url ingest reusing the scoring pipeline"
@@ -711,21 +973,23 @@ git commit -m "feat(add): url ingest reusing the scoring pipeline"
 ## Task 14: `tailor` (no-interview path) + `update_profile` tool
 
 **Files:**
+
 - Create: `src/agent/prompts/tailor.ts`, `src/agent/tools/update-profile.ts`, `src/tailor/tailor.ts`, `src/commands/tailor.ts`, `test/tailor/tailor.test.ts`, `test/agent/update-profile.test.ts`
 - Modify: `src/cli.ts` (register `tailor`)
 
 - [ ] **Step 1: Implement the tailor prompt (no-fabrication contract — Spec Principle 4)**
 
 `src/agent/prompts/tailor.ts`:
+
 ```ts
 import { z } from 'zod';
 import type { Profile } from '../../profile/schema.js';
 import { renderProfileMarkdown } from '../../profile/store.js';
 
 export const TailorOutputSchema = z.object({
-  resumeSummary: z.string(),   // markdown
-  coverLetter: z.string(),     // markdown
-  fitNotes: z.string(),        // markdown: why it matched, strengths, gaps
+  resumeSummary: z.string(), // markdown
+  coverLetter: z.string(), // markdown
+  fitNotes: z.string(), // markdown: why it matched, strengths, gaps
 });
 export type TailorOutput = z.infer<typeof TailorOutputSchema>;
 
@@ -740,14 +1004,19 @@ Produce three markdown documents via the emit_tailored tool:
 - fitNotes: honest notes on why this matched, key strengths to lead with, and any gaps`;
 
 export function tailorUserPrompt(profile: Profile, posting: string, extra?: string): string {
-  return `CANDIDATE PROFILE:\n${renderProfileMarkdown(profile)}\n\nJOB POSTING:\n${posting.slice(0, 8000)}` +
-    (extra ? `\n\nADDITIONAL REAL EXPERIENCE THE CANDIDATE PROVIDED (you may use this):\n${extra}` : '');
+  return (
+    `CANDIDATE PROFILE:\n${renderProfileMarkdown(profile)}\n\nJOB POSTING:\n${posting.slice(0, 8000)}` +
+    (extra
+      ? `\n\nADDITIONAL REAL EXPERIENCE THE CANDIDATE PROVIDED (you may use this):\n${extra}`
+      : '')
+  );
 }
 ```
 
 - [ ] **Step 2: Write the failing test for `tailorPosting` (mock synth + temp db) and `update_profile` apply**
 
 `test/tailor/tailor.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
@@ -758,19 +1027,48 @@ import { tailorPosting } from '../../src/tailor/tailor.js';
 import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
-const profile = { basics: { name: 'Chris' }, skills: { core: [], familiar: [] }, experience: [], notes: [], preferences: {} } as unknown as Profile;
-const job: NormalizedJob = { source: 'greenhouse', externalId: 'g1', company: 'Acme', title: 'Senior Eng', url: 'u', location: null, remote: null, description: 'TS role', postedAt: null, raw: {} };
+const profile = {
+  basics: { name: 'Chris' },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {},
+} as unknown as Profile;
+const job: NormalizedJob = {
+  source: 'greenhouse',
+  externalId: 'g1',
+  company: 'Acme',
+  title: 'Senior Eng',
+  url: 'u',
+  location: null,
+  remote: null,
+  description: 'TS role',
+  postedAt: null,
+  raw: {},
+};
 
 describe('tailorPosting', () => {
   let db: ReturnType<typeof openDb>;
   let outDir: string;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); outDir = mkdtempSync(path.join(tmpdir(), 'js-out-')); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+    outDir = mkdtempSync(path.join(tmpdir(), 'js-out-'));
+  });
 
   it('writes three docs and records an application', async () => {
     const id = upsertJob(db, job).id;
-    const synth = vi.fn().mockResolvedValue({ resumeSummary: '# Summary', coverLetter: '# Cover', fitNotes: '# Fit' });
+    const synth = vi
+      .fn()
+      .mockResolvedValue({ resumeSummary: '# Summary', coverLetter: '# Cover', fitNotes: '# Fit' });
     const result = await tailorPosting({
-      db, outputDir: outDir, profile, jobId: id, company: 'Acme', title: 'Senior Eng', postingText: 'TS role',
+      db,
+      outputDir: outDir,
+      profile,
+      jobId: id,
+      company: 'Acme',
+      title: 'Senior Eng',
+      postingText: 'TS role',
       synthesize: synth,
     });
     expect(existsSync(result.resumePath)).toBe(true);
@@ -781,20 +1079,37 @@ describe('tailorPosting', () => {
 ```
 
 `test/agent/update-profile.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { applyProfileUpdate } from '../../src/agent/tools/update-profile.js';
 import type { Profile } from '../../src/profile/schema.js';
 
 const base: Profile = {
-  version: 1, updatedAt: '', basics: { name: 'C', headline: '', yearsExperience: 8, summary: '' },
-  skills: { core: ['TS'], familiar: [] }, experience: [], notes: [],
-  preferences: { targetRoles: [], seniority: [], locations: [], remote: 'any', maxCommuteMiles: null, minBaseComp: null, mustHave: [], dealbreakers: [] },
+  version: 1,
+  updatedAt: '',
+  basics: { name: 'C', headline: '', yearsExperience: 8, summary: '' },
+  skills: { core: ['TS'], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {
+    targetRoles: [],
+    seniority: [],
+    locations: [],
+    remote: 'any',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: [],
+    dealbreakers: [],
+  },
 };
 
 describe('applyProfileUpdate', () => {
   it('appends a note and sets a preference', () => {
-    const next = applyProfileUpdate(base, { addNote: 'Prefers async teams', setPreferences: { maxCommuteMiles: 30 } });
+    const next = applyProfileUpdate(base, {
+      addNote: 'Prefers async teams',
+      setPreferences: { maxCommuteMiles: 30 },
+    });
     expect(next.notes).toContain('Prefers async teams');
     expect(next.preferences.maxCommuteMiles).toBe(30);
     expect(next.skills.core).toEqual(['TS']); // untouched
@@ -810,6 +1125,7 @@ describe('applyProfileUpdate', () => {
 - [ ] **Step 3: Run red, implement `src/agent/tools/update-profile.ts` and `src/tailor/tailor.ts`**
 
 `src/agent/tools/update-profile.ts`:
+
 ```ts
 import { z } from 'zod';
 import type { Profile } from '../../profile/schema.js';
@@ -819,26 +1135,35 @@ export const UpdateProfileInput = z.object({
   addNote: z.string().optional(),
   addCoreSkills: z.array(z.string()).optional(),
   addExperienceHighlight: z.object({ company: z.string(), highlight: z.string() }).optional(),
-  setPreferences: z.object({
-    maxCommuteMiles: z.number().nullable().optional(),
-    minBaseComp: z.number().nullable().optional(),
-    remote: z.enum(['remote', 'hybrid', 'onsite', 'any']).optional(),
-    mustHave: z.array(z.string()).optional(),
-    dealbreakers: z.array(z.string()).optional(),
-  }).optional(),
+  setPreferences: z
+    .object({
+      maxCommuteMiles: z.number().nullable().optional(),
+      minBaseComp: z.number().nullable().optional(),
+      remote: z.enum(['remote', 'hybrid', 'onsite', 'any']).optional(),
+      mustHave: z.array(z.string()).optional(),
+      dealbreakers: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileInput>;
 
 const uniq = (a: string[]) => [...new Set(a)];
 
-export function applyProfileUpdate(profile: Profile, update: Omit<UpdateProfile, 'reason'>): Profile {
+export function applyProfileUpdate(
+  profile: Profile,
+  update: Omit<UpdateProfile, 'reason'>,
+): Profile {
   const next: Profile = structuredClone(profile);
   if (update.addNote) next.notes = uniq([...next.notes, update.addNote]);
   if (update.addCoreSkills) next.skills.core = uniq([...next.skills.core, ...update.addCoreSkills]);
   if (update.addExperienceHighlight) {
     const exp = next.experience.find((e) => e.company === update.addExperienceHighlight!.company);
     if (exp) exp.highlights = uniq([...exp.highlights, update.addExperienceHighlight.highlight]);
-    else next.notes = uniq([...next.notes, `${update.addExperienceHighlight.company}: ${update.addExperienceHighlight.highlight}`]);
+    else
+      next.notes = uniq([
+        ...next.notes,
+        `${update.addExperienceHighlight.company}: ${update.addExperienceHighlight.highlight}`,
+      ]);
   }
   if (update.setPreferences) Object.assign(next.preferences, update.setPreferences);
   next.updatedAt = new Date().toISOString();
@@ -847,6 +1172,7 @@ export function applyProfileUpdate(profile: Profile, update: Omit<UpdateProfile,
 ```
 
 `src/tailor/tailor.ts`:
+
 ```ts
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -856,7 +1182,11 @@ import type { Profile } from '../profile/schema.js';
 import type { TailorOutput } from '../agent/prompts/tailor.js';
 
 function slug(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
 }
 
 export interface TailorDeps {
@@ -868,13 +1198,26 @@ export interface TailorDeps {
   title: string;
   postingText: string;
   extraExperience?: string;
-  synthesize: (args: { profile: Profile; postingText: string; extra?: string }) => Promise<TailorOutput>;
+  synthesize: (args: {
+    profile: Profile;
+    postingText: string;
+    extra?: string;
+  }) => Promise<TailorOutput>;
 }
 
-export interface TailorResult { dir: string; resumePath: string; coverPath: string; fitNotesPath: string }
+export interface TailorResult {
+  dir: string;
+  resumePath: string;
+  coverPath: string;
+  fitNotesPath: string;
+}
 
 export async function tailorPosting(deps: TailorDeps): Promise<TailorResult> {
-  const out = await deps.synthesize({ profile: deps.profile, postingText: deps.postingText, extra: deps.extraExperience });
+  const out = await deps.synthesize({
+    profile: deps.profile,
+    postingText: deps.postingText,
+    extra: deps.extraExperience,
+  });
   const dir = path.join(deps.outputDir, `${slug(deps.company)}-${slug(deps.title)}`);
   mkdirSync(dir, { recursive: true });
   const resumePath = path.join(dir, 'resume-summary.md');
@@ -883,7 +1226,8 @@ export async function tailorPosting(deps: TailorDeps): Promise<TailorResult> {
   writeFileSync(resumePath, out.resumeSummary);
   writeFileSync(coverPath, out.coverLetter);
   writeFileSync(fitNotesPath, out.fitNotes);
-  if (deps.jobId != null) insertApplication(deps.db, { jobId: deps.jobId, resumePath, coverPath, fitNotesPath });
+  if (deps.jobId != null)
+    insertApplication(deps.db, { jobId: deps.jobId, resumePath, coverPath, fitNotesPath });
   return { dir, resumePath, coverPath, fitNotesPath };
 }
 ```
@@ -901,12 +1245,19 @@ import { loadProfile } from '../profile/store.js';
 import { fetchPostingText } from '../fetcher/posting.js';
 import { tailorPosting } from '../tailor/tailor.js';
 
-export interface TailorCliOpts { jobId?: number; url?: string; textFile?: string; opus?: boolean; interview?: boolean }
+export interface TailorCliOpts {
+  jobId?: number;
+  url?: string;
+  textFile?: string;
+  opus?: boolean;
+  interview?: boolean;
+}
 
 export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void> {
   const profile = loadProfile(cfg);
   if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
-  const db = openDb(cfg.dbPath); migrate(db);
+  const db = openDb(cfg.dbPath);
+  migrate(db);
   const client = createClient(cfg);
 
   let company = 'company';
@@ -917,10 +1268,14 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
   if (opts.jobId != null) {
     const job = getJobById(db, opts.jobId);
     if (!job) throw new Error(`No job with id ${opts.jobId}.`);
-    jobId = job.id; company = job.company; title = job.title; postingText = job.description;
+    jobId = job.id;
+    company = job.company;
+    title = job.title;
+    postingText = job.description;
   } else if (opts.url) {
     const p = await fetchPostingText(opts.url);
-    title = p.title ?? title; postingText = p.text;
+    title = p.title ?? title;
+    postingText = p.text;
   } else if (opts.textFile) {
     postingText = readFileSync(opts.textFile, 'utf8');
   } else {
@@ -930,9 +1285,23 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
   // Plan 2 Task 16 inserts the optional gap-interview here when opts.interview !== false.
   const model = opts.opus ? cfg.models.synth : cfg.models.worker;
   const result = await tailorPosting({
-    db, outputDir: cfg.outputDir, profile, jobId, company, title, postingText,
+    db,
+    outputDir: cfg.outputDir,
+    profile,
+    jobId,
+    company,
+    title,
+    postingText,
     synthesize: ({ profile, postingText, extra }) =>
-      structuredCall({ client, model, system: TAILOR_SYSTEM, user: tailorUserPrompt(profile, postingText, extra), toolName: 'emit_tailored', schema: TailorOutputSchema, maxTokens: 4096 }),
+      structuredCall({
+        client,
+        model,
+        system: TAILOR_SYSTEM,
+        user: tailorUserPrompt(profile, postingText, extra),
+        toolName: 'emit_tailored',
+        schema: TailorOutputSchema,
+        maxTokens: 4096,
+      }),
   });
   console.log(`\nTailored docs written to ${result.dir}`);
 }
@@ -952,12 +1321,19 @@ program
   .option('--opus', 'use the synthesis (Opus) tier')
   .option('--no-interview', 'skip the gap-interview')
   .action(async (jobId: number | undefined, opts) => {
-    await runTailor(loadConfig(), { jobId: Number.isNaN(jobId) ? undefined : jobId, url: opts.url, textFile: opts.text, opus: opts.opus, interview: opts.interview });
+    await runTailor(loadConfig(), {
+      jobId: Number.isNaN(jobId) ? undefined : jobId,
+      url: opts.url,
+      textFile: opts.text,
+      opus: opts.opus,
+      interview: opts.interview,
+    });
   });
 ```
 
 Run: `npm test && npm run lint && npm run build`
 Expected: green / clean / ok.
+
 ```bash
 git add src/agent/prompts/tailor.ts src/agent/tools/update-profile.ts src/tailor src/commands/tailor.ts src/cli.ts test/tailor test/agent/update-profile.test.ts
 git commit -m "feat(tailor): no-fabrication tailoring + update_profile apply logic"
@@ -968,6 +1344,7 @@ git commit -m "feat(tailor): no-fabrication tailoring + update_profile apply log
 ## Task 15: Wire `update_profile` proposals into `find` and `tailor`
 
 **Files:**
+
 - Create: `src/agent/propose.ts`, `test/agent/propose.test.ts`
 - Modify: `src/commands/tailor.ts`, `src/commands/profile.ts` (confirm-and-save helper)
 
@@ -976,19 +1353,27 @@ The `update_profile` tool is offered to the model in agentic flows; when called,
 - [ ] **Step 1: Write the failing test for the confirm-and-apply helper (mock confirm + save)**
 
 `test/agent/propose.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { confirmAndApply } from '../../src/agent/propose.js';
 import type { Profile } from '../../src/profile/schema.js';
 
-const profile = { notes: [], skills: { core: [], familiar: [] }, experience: [], preferences: {} } as unknown as Profile;
+const profile = {
+  notes: [],
+  skills: { core: [], familiar: [] },
+  experience: [],
+  preferences: {},
+} as unknown as Profile;
 
 describe('confirmAndApply', () => {
   it('saves when the user confirms', async () => {
     const save = vi.fn();
     const next = await confirmAndApply({
-      profile, update: { reason: 'Add commute', setPreferences: { maxCommuteMiles: 30 } },
-      confirm: async () => true, save,
+      profile,
+      update: { reason: 'Add commute', setPreferences: { maxCommuteMiles: 30 } },
+      confirm: async () => true,
+      save,
     });
     expect(save).toHaveBeenCalledOnce();
     expect(next!.preferences.maxCommuteMiles).toBe(30);
@@ -996,7 +1381,12 @@ describe('confirmAndApply', () => {
 
   it('does nothing when the user declines', async () => {
     const save = vi.fn();
-    const next = await confirmAndApply({ profile, update: { reason: 'x', addNote: 'n' }, confirm: async () => false, save });
+    const next = await confirmAndApply({
+      profile,
+      update: { reason: 'x', addNote: 'n' },
+      confirm: async () => false,
+      save,
+    });
     expect(save).not.toHaveBeenCalled();
     expect(next).toBeNull();
   });
@@ -1029,6 +1419,7 @@ export async function confirmAndApply(deps: ConfirmAndApplyDeps): Promise<Profil
 - [ ] **Step 3: Use it in `runTailor`/`runProfile*`**
 
 After a tailor run, if the synthesis surfaced a proposed update (Task 16 produces these from the gap-interview), call `confirmAndApply` with a terminal yes/no prompt and `saveProfile`. Add a small prompter:
+
 ```ts
 // in src/commands/tailor.ts
 import { createPrompter } from '../profile/interview.js';
@@ -1036,14 +1427,17 @@ import { confirmAndApply } from '../agent/propose.js';
 import { saveProfile } from '../profile/store.js';
 // ...build a confirm fn:
 const ask = createPrompter();
-const confirm = async (reason: string) => /^y/i.test(await ask(`Update your profile? ${reason} (y/N)`));
+const confirm = async (reason: string) =>
+  /^y/i.test(await ask(`Update your profile? ${reason} (y/N)`));
 // after gathering proposals[] (Task 16):
 // for (const u of proposals) await confirmAndApply({ profile, update: u, confirm, save: (p) => saveProfile(cfg, p) });
 ```
+
 > This is wired concretely in Task 16 where proposals are generated. Keep the helper generic here.
 
 Run: `npx vitest run test/agent/propose.test.ts && npm run lint`
 Expected: PASS / clean.
+
 ```bash
 git add src/agent/propose.ts test/agent/propose.test.ts src/commands/tailor.ts
 git commit -m "feat(agent): confirm-and-apply for proposed profile updates"
@@ -1054,22 +1448,30 @@ git commit -m "feat(agent): confirm-and-apply for proposed profile updates"
 ## Task 16: Gap-interview during `tailor` (Spec §10)
 
 **Files:**
+
 - Create: `src/agent/prompts/tailor-gap-interview.ts`, `src/tailor/gap-interview.ts`, `test/tailor/gap-interview.test.ts`
 - Modify: `src/commands/tailor.ts` (insert the interview before synthesis when interactive)
 
 - [ ] **Step 1: Implement the prompt + schema**
 
 `src/agent/prompts/tailor-gap-interview.ts`:
+
 ```ts
 import { z } from 'zod';
 import type { Profile } from '../../profile/schema.js';
 import { renderProfileMarkdown } from '../../profile/store.js';
 
 export const GapsSchema = z.object({
-  gaps: z.array(z.object({
-    skill: z.string(),
-    question: z.string().describe('A specific question drawing out real experience with this skill.'),
-  })).max(3),
+  gaps: z
+    .array(
+      z.object({
+        skill: z.string(),
+        question: z
+          .string()
+          .describe('A specific question drawing out real experience with this skill.'),
+      }),
+    )
+    .max(3),
 });
 export type Gaps = z.infer<typeof GapsSchema>;
 
@@ -1087,27 +1489,50 @@ export function gapUserPrompt(profile: Profile, posting: string): string {
 - [ ] **Step 2: Write the failing test for the gap-interview orchestration**
 
 `test/tailor/gap-interview.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { runGapInterview } from '../../src/tailor/gap-interview.js';
 import type { Profile } from '../../src/profile/schema.js';
 
-const profile = { skills: { core: ['TS'], familiar: [] }, experience: [], notes: [], preferences: {}, basics: {} } as unknown as Profile;
+const profile = {
+  skills: { core: ['TS'], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {},
+  basics: {},
+} as unknown as Profile;
 
 describe('runGapInterview', () => {
   it('asks each gap question and returns extra experience + proposals', async () => {
-    const identify = vi.fn().mockResolvedValue({ gaps: [{ skill: 'Kafka', question: 'Tell me about your Kafka experience.' }] });
+    const identify = vi
+      .fn()
+      .mockResolvedValue({
+        gaps: [{ skill: 'Kafka', question: 'Tell me about your Kafka experience.' }],
+      });
     const ask = vi.fn().mockResolvedValue('Ran Kafka at 1M msgs/sec for 3 years.');
-    const { extraExperience, proposals } = await runGapInterview({ profile, postingText: 'Kafka role', identifyGaps: identify, ask });
+    const { extraExperience, proposals } = await runGapInterview({
+      profile,
+      postingText: 'Kafka role',
+      identifyGaps: identify,
+      ask,
+    });
     expect(extraExperience).toContain('Kafka');
     expect(proposals[0].reason).toMatch(/Kafka/);
     expect(proposals[0].addCoreSkills).toContain('Kafka');
   });
 
   it('skips a gap the user cannot speak to and proposes nothing for it', async () => {
-    const identify = vi.fn().mockResolvedValue({ gaps: [{ skill: 'COBOL', question: 'COBOL experience?' }] });
+    const identify = vi
+      .fn()
+      .mockResolvedValue({ gaps: [{ skill: 'COBOL', question: 'COBOL experience?' }] });
     const ask = vi.fn().mockResolvedValue('skip');
-    const { extraExperience, proposals } = await runGapInterview({ profile, postingText: 'x', identifyGaps: identify, ask });
+    const { extraExperience, proposals } = await runGapInterview({
+      profile,
+      postingText: 'x',
+      identifyGaps: identify,
+      ask,
+    });
     expect(extraExperience).toBe('');
     expect(proposals).toHaveLength(0);
   });
@@ -1115,7 +1540,12 @@ describe('runGapInterview', () => {
   it('returns empty when there are no gaps', async () => {
     const identify = vi.fn().mockResolvedValue({ gaps: [] });
     const ask = vi.fn();
-    const { proposals } = await runGapInterview({ profile, postingText: 'x', identifyGaps: identify, ask });
+    const { proposals } = await runGapInterview({
+      profile,
+      postingText: 'x',
+      identifyGaps: identify,
+      ask,
+    });
     expect(ask).not.toHaveBeenCalled();
     expect(proposals).toHaveLength(0);
   });
@@ -1138,7 +1568,10 @@ export interface GapInterviewDeps {
   ask: (question: string) => Promise<string>;
 }
 
-export interface GapInterviewResult { extraExperience: string; proposals: UpdateProfile[] }
+export interface GapInterviewResult {
+  extraExperience: string;
+  proposals: UpdateProfile[];
+}
 
 export async function runGapInterview(deps: GapInterviewDeps): Promise<GapInterviewResult> {
   const { gaps } = await deps.identifyGaps(deps.profile, deps.postingText);
@@ -1161,6 +1594,7 @@ export async function runGapInterview(deps: GapInterviewDeps): Promise<GapInterv
 - [ ] **Step 4: Wire into `runTailor` (between input resolution and synthesis)**
 
 In `src/commands/tailor.ts`, before the `tailorPosting` call:
+
 ```ts
 import { runGapInterview } from '../tailor/gap-interview.js';
 import { GAP_SYSTEM, gapUserPrompt, GapsSchema } from '../agent/prompts/tailor-gap-interview.js';
@@ -1173,18 +1607,34 @@ let mutableProfile = profile;
 if (opts.interview !== false && process.stdin.isTTY) {
   const ask = createPrompter();
   const { extraExperience: extra, proposals } = await runGapInterview({
-    profile, postingText,
-    identifyGaps: (p, posting) => structuredCall({ client, model: cfg.models.worker, system: GAP_SYSTEM, user: gapUserPrompt(p, posting), toolName: 'emit_gaps', schema: GapsSchema }),
+    profile,
+    postingText,
+    identifyGaps: (p, posting) =>
+      structuredCall({
+        client,
+        model: cfg.models.worker,
+        system: GAP_SYSTEM,
+        user: gapUserPrompt(p, posting),
+        toolName: 'emit_gaps',
+        schema: GapsSchema,
+      }),
     ask,
   });
   extraExperience = extra || undefined;
-  const confirm = async (reason: string) => /^y/i.test(await ask(`Update your profile? ${reason} (y/N) `));
+  const confirm = async (reason: string) =>
+    /^y/i.test(await ask(`Update your profile? ${reason} (y/N) `));
   for (const u of proposals) {
-    const next = await confirmAndApply({ profile: mutableProfile, update: u, confirm, save: (pp) => saveProfile(cfg, pp) });
+    const next = await confirmAndApply({
+      profile: mutableProfile,
+      update: u,
+      confirm,
+      save: (pp) => saveProfile(cfg, pp),
+    });
     if (next) mutableProfile = next;
   }
 }
 ```
+
 Then pass `profile: mutableProfile` and `extraExperience` into `tailorPosting`.
 
 > **MCP/non-interactive note (Spec §10):** the gap-interview only runs when `opts.interview !== false` **and** `process.stdin.isTTY`. The published MCP `tailor` tool (Plan 3) runs non-interactively and instead returns the identified gap questions in its result.

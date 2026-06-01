@@ -5,8 +5,14 @@
   "skills": { "core": [], "familiar": [] },
   "experience": [],
   "preferences": {
-    "targetRoles": [], "seniority": [], "locations": [], "remote": "any",
-    "maxCommuteMiles": null, "minBaseComp": null, "mustHave": [], "dealbreakers": []
+    "targetRoles": [],
+    "seniority": [],
+    "locations": [],
+    "remote": "any",
+    "maxCommuteMiles": null,
+    "minBaseComp": null,
+    "mustHave": [],
+    "dealbreakers": []
   },
   "notes": []
 }

@@ -34,7 +34,7 @@ afterthoughts.
   jobs.
 - `tailor` produces resume + cover-letter Markdown that contains no fabricated experience.
 - The codebase reads as clean, well-bounded, tested TypeScript.
-- The README clearly explains the problem, the architecture, and *how the project was built with AI*.
+- The README clearly explains the problem, the architecture, and _how the project was built with AI_.
 
 ### Non-goals (v1)
 
@@ -211,7 +211,7 @@ violation must fail lint.
   `--note`). Re-running `build` merges rather than clobbers (preserve user-confirmed fields unless
   the user changes them).
 - **Living refinement (the feedback loop):** an `update_profile` agent tool (Section 10) lets `find`
-  and `tailor` *propose* additions mid-task — e.g. a job outside the user's commute prompts "record
+  and `tailor` _propose_ additions mid-task — e.g. a job outside the user's commute prompts "record
   max commute 30 mi?" The change is written **only after explicit user confirmation**.
 - **Gap-interview during tailor:** when a posting heavily emphasizes a skill the profile covers
   thinly or not at all, `tailor` interviews the user to surface real, specific experience, then uses
@@ -227,36 +227,38 @@ these. All string arrays default to `[]`.
 ```ts
 const Profile = z.object({
   version: z.literal(1),
-  updatedAt: z.string(),                 // ISO 8601
+  updatedAt: z.string(), // ISO 8601
   basics: z.object({
     name: z.string(),
-    headline: z.string(),                // e.g. "Full-stack engineer, 8y, TS/Node/AWS"
+    headline: z.string(), // e.g. "Full-stack engineer, 8y, TS/Node/AWS"
     yearsExperience: z.number(),
-    summary: z.string(),                 // 2-4 sentence professional summary
+    summary: z.string(), // 2-4 sentence professional summary
   }),
   skills: z.object({
-    core: z.array(z.string()),           // strongest, e.g. ["TypeScript","DynamoDB","CDK"]
+    core: z.array(z.string()), // strongest, e.g. ["TypeScript","DynamoDB","CDK"]
     familiar: z.array(z.string()),
   }),
-  experience: z.array(z.object({
-    company: z.string(),
-    title: z.string(),
-    start: z.string(),                   // "YYYY-MM"
-    end: z.string().nullable(),          // null = present
-    highlights: z.array(z.string()),     // concrete, resume-grade bullets
-    tech: z.array(z.string()),
-  })),
+  experience: z.array(
+    z.object({
+      company: z.string(),
+      title: z.string(),
+      start: z.string(), // "YYYY-MM"
+      end: z.string().nullable(), // null = present
+      highlights: z.array(z.string()), // concrete, resume-grade bullets
+      tech: z.array(z.string()),
+    }),
+  ),
   preferences: z.object({
-    targetRoles: z.array(z.string()),    // e.g. ["Senior Full-stack Engineer","Staff Eng"]
-    seniority: z.array(z.string()),      // e.g. ["senior","staff"]
-    locations: z.array(z.string()),      // e.g. ["Remote (US)","Boston, MA"]
-    remote: z.enum(["remote","hybrid","onsite","any"]),
+    targetRoles: z.array(z.string()), // e.g. ["Senior Full-stack Engineer","Staff Eng"]
+    seniority: z.array(z.string()), // e.g. ["senior","staff"]
+    locations: z.array(z.string()), // e.g. ["Remote (US)","Boston, MA"]
+    remote: z.enum(['remote', 'hybrid', 'onsite', 'any']),
     maxCommuteMiles: z.number().nullable(),
-    minBaseComp: z.number().nullable(),  // USD/year
-    mustHave: z.array(z.string()),       // dealmakers, e.g. ["TypeScript"]
-    dealbreakers: z.array(z.string()),   // exclude terms, e.g. ["on-call 24/7","PHP"]
+    minBaseComp: z.number().nullable(), // USD/year
+    mustHave: z.array(z.string()), // dealmakers, e.g. ["TypeScript"]
+    dealbreakers: z.array(z.string()), // exclude terms, e.g. ["on-call 24/7","PHP"]
   }),
-  notes: z.array(z.string()),            // freeform, from updates/feedback loop
+  notes: z.array(z.string()), // freeform, from updates/feedback loop
   extras: z.record(z.unknown()).optional(),
 });
 ```
@@ -282,16 +284,16 @@ no-auth endpoints:
 
 ```ts
 type NormalizedJob = {
-  source: "greenhouse" | "lever" | "ashby" | "url";
-  externalId: string;          // stable id from the source; for url ingest, a hash of the URL
+  source: 'greenhouse' | 'lever' | 'ashby' | 'url';
+  externalId: string; // stable id from the source; for url ingest, a hash of the URL
   company: string;
   title: string;
   url: string;
   location: string | null;
-  remote: boolean | null;      // best-effort from location/flags
-  description: string;         // plain text (strip HTML)
-  postedAt: string | null;     // ISO 8601 if available
-  raw: unknown;                // original payload, persisted as raw_json
+  remote: boolean | null; // best-effort from location/flags
+  description: string; // plain text (strip HTML)
+  postedAt: string | null; // ISO 8601 if available
+  raw: unknown; // original payload, persisted as raw_json
 };
 ```
 
@@ -300,8 +302,8 @@ type NormalizedJob = {
 ```yaml
 companies:
   - { source: greenhouse, slug: examplecorp }
-  - { source: lever,      slug: examplelabs }
-  - { source: ashby,      slug: exampleai }
+  - { source: lever, slug: examplelabs }
+  - { source: ashby, slug: exampleai }
 ```
 
 Per-company failures are isolated: log a warning, continue. A failed company never aborts the run.
@@ -349,7 +351,7 @@ const JobScore = z.object({
   score: z.number().min(0).max(100),
   matchedSkills: z.array(z.string()),
   missingSkills: z.array(z.string()),
-  reasons: z.string(),          // 1-3 sentences, why this score
+  reasons: z.string(), // 1-3 sentences, why this score
 });
 ```
 

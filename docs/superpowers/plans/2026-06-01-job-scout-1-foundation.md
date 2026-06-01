@@ -18,33 +18,34 @@
 
 ## File Structure (Plan 1)
 
-| File | Responsibility |
-|------|----------------|
-| `package.json`, `tsconfig.json`, `.gitignore`, `.env.example`, `eslint.config.js`, `.prettierrc`, `vitest.config.ts` | Project scaffold + toolchain |
-| `companies.example.yaml` | Sample ATS watchlist (committed) |
-| `profile/.gitkeep`, `profile/profile.template.json` | Profile dir placeholder + shape reference |
-| `src/cli.ts` | commander wiring only |
-| `src/config.ts` | Env, paths, model names, constants |
-| `src/db/schema.sql`, `src/db/migrate.ts`, `src/db/index.ts` | SQLite schema + typed queries |
-| `src/profile/schema.ts` | zod `Profile` schema + types |
-| `src/profile/store.ts` | load/save profile.json, render profile.md |
-| `src/profile/pdf.ts` | PDF text extraction (unpdf) + text cleaning |
-| `src/sources/types.ts` | `NormalizedJob`, `SourceAdapter`, `WatchlistEntry` |
-| `src/sources/http.ts` | `fetchJson` with retry/backoff + `stripHtml` |
-| `src/sources/greenhouse.ts`, `lever.ts`, `ashby.ts` | ATS adapters |
-| `src/sources/index.ts` | adapter registry + watchlist loader |
-| `src/ingest/dedup.ts` | drop jobs already in DB |
-| `src/ingest/prefilter.ts` | deterministic gating vs profile prefs |
-| `src/ingest/pipeline.ts` | `ingest()` core (dedup → prefilter → score(injected) → persist) |
-| `src/ui/table.ts` | console table formatter |
-| `src/commands/find.ts`, `pipeline.ts` | command handlers |
-| `test/**` | vitest specs mirroring `src/`; `test/fixtures/` recorded JSON + sample PDF |
+| File                                                                                                                 | Responsibility                                                             |
+| -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `package.json`, `tsconfig.json`, `.gitignore`, `.env.example`, `eslint.config.js`, `.prettierrc`, `vitest.config.ts` | Project scaffold + toolchain                                               |
+| `companies.example.yaml`                                                                                             | Sample ATS watchlist (committed)                                           |
+| `profile/.gitkeep`, `profile/profile.template.json`                                                                  | Profile dir placeholder + shape reference                                  |
+| `src/cli.ts`                                                                                                         | commander wiring only                                                      |
+| `src/config.ts`                                                                                                      | Env, paths, model names, constants                                         |
+| `src/db/schema.sql`, `src/db/migrate.ts`, `src/db/index.ts`                                                          | SQLite schema + typed queries                                              |
+| `src/profile/schema.ts`                                                                                              | zod `Profile` schema + types                                               |
+| `src/profile/store.ts`                                                                                               | load/save profile.json, render profile.md                                  |
+| `src/profile/pdf.ts`                                                                                                 | PDF text extraction (unpdf) + text cleaning                                |
+| `src/sources/types.ts`                                                                                               | `NormalizedJob`, `SourceAdapter`, `WatchlistEntry`                         |
+| `src/sources/http.ts`                                                                                                | `fetchJson` with retry/backoff + `stripHtml`                               |
+| `src/sources/greenhouse.ts`, `lever.ts`, `ashby.ts`                                                                  | ATS adapters                                                               |
+| `src/sources/index.ts`                                                                                               | adapter registry + watchlist loader                                        |
+| `src/ingest/dedup.ts`                                                                                                | drop jobs already in DB                                                    |
+| `src/ingest/prefilter.ts`                                                                                            | deterministic gating vs profile prefs                                      |
+| `src/ingest/pipeline.ts`                                                                                             | `ingest()` core (dedup → prefilter → score(injected) → persist)            |
+| `src/ui/table.ts`                                                                                                    | console table formatter                                                    |
+| `src/commands/find.ts`, `pipeline.ts`                                                                                | command handlers                                                           |
+| `test/**`                                                                                                            | vitest specs mirroring `src/`; `test/fixtures/` recorded JSON + sample PDF |
 
 ---
 
 ## Task 1: Project scaffold + toolchain
 
 **Files:**
+
 - Create: `package.json`, `tsconfig.json`, `.gitignore`, `.env.example`, `eslint.config.js`, `.prettierrc`, `vitest.config.ts`, `src/cli.ts`, `companies.example.yaml`, `profile/.gitkeep`, `profile/profile.template.json`, `README.md` (stub)
 
 - [ ] **Step 1: Create `package.json`**
@@ -136,6 +137,7 @@ companies.yaml
 - [ ] **Step 4: Create `.env.example`, `.prettierrc`, `companies.example.yaml`, `profile/.gitkeep`, `profile/profile.template.json`, `README.md`**
 
 `.env.example`:
+
 ```bash
 # Required for Plan 2+ (LLM features). Not needed for Plan 1.
 ANTHROPIC_API_KEY=
@@ -146,11 +148,13 @@ ANTHROPIC_API_KEY=
 ```
 
 `.prettierrc`:
+
 ```json
 { "singleQuote": true, "semi": true, "printWidth": 100, "trailingComma": "all" }
 ```
 
 `companies.example.yaml`:
+
 ```yaml
 # Copy to companies.yaml and edit. Each entry: source + the board slug.
 companies:
@@ -162,6 +166,7 @@ companies:
 `profile/.gitkeep`: empty file.
 
 `profile/profile.template.json` (shape reference for a built profile — keys present, values empty):
+
 ```json
 {
   "version": 1,
@@ -170,14 +175,21 @@ companies:
   "skills": { "core": [], "familiar": [] },
   "experience": [],
   "preferences": {
-    "targetRoles": [], "seniority": [], "locations": [], "remote": "any",
-    "maxCommuteMiles": null, "minBaseComp": null, "mustHave": [], "dealbreakers": []
+    "targetRoles": [],
+    "seniority": [],
+    "locations": [],
+    "remote": "any",
+    "maxCommuteMiles": null,
+    "minBaseComp": null,
+    "mustHave": [],
+    "dealbreakers": []
   },
   "notes": []
 }
 ```
 
 `README.md` (stub — fully written in Plan 3):
+
 ```markdown
 # job-scout
 
@@ -208,29 +220,53 @@ export default [
     },
     rules: {
       // The architectural invariant (Spec Principle 1): core must not import agent/LLM code.
-      'boundaries/element-types': ['error', {
-        default: 'allow',
-        rules: [
-          { from: 'core', disallow: ['agent'], message: 'Deterministic core must not import agent/LLM code (Spec Principle 1).' },
-        ],
-      }],
+      'boundaries/element-types': [
+        'error',
+        {
+          default: 'allow',
+          rules: [
+            {
+              from: 'core',
+              disallow: ['agent'],
+              message: 'Deterministic core must not import agent/LLM code (Spec Principle 1).',
+            },
+          ],
+        },
+      ],
     },
   },
   {
     // SDK import ban applies ONLY to the deterministic core (Spec §4 module list).
     // scoring/score.ts, tailor/**, fetcher/**, commands/**, mcp/**, agent/** legitimately use LLMs.
     files: [
-      'src/config.ts', 'src/db/**/*.ts', 'src/profile/schema.ts', 'src/profile/store.ts',
-      'src/profile/pdf.ts', 'src/sources/**/*.ts', 'src/ingest/**/*.ts', 'src/ui/**/*.ts',
+      'src/config.ts',
+      'src/db/**/*.ts',
+      'src/profile/schema.ts',
+      'src/profile/store.ts',
+      'src/profile/pdf.ts',
+      'src/sources/**/*.ts',
+      'src/ingest/**/*.ts',
+      'src/ui/**/*.ts',
       'src/scoring/rubric.ts',
     ],
     rules: {
-      'no-restricted-imports': ['error', {
-        paths: [
-          { name: '@anthropic-ai/sdk', message: 'Deterministic core must not import the Anthropic SDK; go through src/agent (Spec Principle 1).' },
-          { name: '@anthropic-ai/claude-agent-sdk', message: 'Deterministic core must not import the Agent SDK; go through src/agent (Spec Principle 1).' },
-        ],
-      }],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@anthropic-ai/sdk',
+              message:
+                'Deterministic core must not import the Anthropic SDK; go through src/agent (Spec Principle 1).',
+            },
+            {
+              name: '@anthropic-ai/claude-agent-sdk',
+              message:
+                'Deterministic core must not import the Agent SDK; go through src/agent (Spec Principle 1).',
+            },
+          ],
+        },
+      ],
     },
   },
   prettier,
@@ -242,18 +278,23 @@ export default [
 - [ ] **Step 6: Create `vitest.config.ts` and `src/cli.ts` skeleton**
 
 `vitest.config.ts`:
+
 ```ts
 import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { include: ['test/**/*.test.ts'], environment: 'node' } });
 ```
 
 `src/cli.ts`:
+
 ```ts
 #!/usr/bin/env node
 import { Command } from 'commander';
 
 const program = new Command();
-program.name('job-scout').description('Find and tailor job applications from your living profile.').version('0.1.0');
+program
+  .name('job-scout')
+  .description('Find and tailor job applications from your living profile.')
+  .version('0.1.0');
 
 // Subcommands are registered in later tasks.
 
@@ -266,12 +307,14 @@ program.parseAsync(process.argv).catch((err) => {
 - [ ] **Step 7: Install and verify the toolchain**
 
 Run:
+
 ```bash
 npm install
 npm run typecheck
 npm run build
 node dist/cli.js --help
 ```
+
 Expected: install succeeds; typecheck/build clean; `--help` prints the program description and `--version`.
 
 - [ ] **Step 8: Commit**
@@ -286,11 +329,13 @@ git commit -m "chore: scaffold job-scout toolchain (tsc, eslint+boundaries, vite
 ## Task 2: `config.ts`
 
 **Files:**
+
 - Create: `src/config.ts`, `test/config.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 `test/config.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -308,7 +353,11 @@ describe('loadConfig', () => {
   it('defaults models and honors env overrides', () => {
     expect(loadConfig('/x', {}).models.worker).toBe('claude-sonnet-4-6');
     expect(loadConfig('/x', {}).models.synth).toBe('claude-opus-4-8');
-    const c = loadConfig('/x', { JOB_SCOUT_MODEL_WORKER: 'm1', JOB_SCOUT_MODEL_SYNTH: 'm2', JOB_SCOUT_DEBUG: '1' });
+    const c = loadConfig('/x', {
+      JOB_SCOUT_MODEL_WORKER: 'm1',
+      JOB_SCOUT_MODEL_SYNTH: 'm2',
+      JOB_SCOUT_DEBUG: '1',
+    });
     expect(c.models.worker).toBe('m1');
     expect(c.models.synth).toBe('m2');
     expect(c.debug).toBe(true);
@@ -384,6 +433,7 @@ git commit -m "feat(config): paths, model tiering, and constants"
 ## Task 3: SQLite persistence (`db/`)
 
 **Files:**
+
 - Create: `src/db/schema.sql`, `src/db/migrate.ts`, `src/db/index.ts`, `test/db/index.test.ts`
 
 - [ ] **Step 1: Create `src/db/schema.sql`** (verbatim from Spec §7)
@@ -426,22 +476,43 @@ CREATE TABLE IF NOT EXISTS applications (
 - [ ] **Step 2: Write the failing test**
 
 `test/db/index.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { openDb, migrate, upsertJob, getJobs, getJobById, setStatus, insertApplication, getApplication } from '../../src/db/index.js';
+import {
+  openDb,
+  migrate,
+  upsertJob,
+  getJobs,
+  getJobById,
+  setStatus,
+  insertApplication,
+  getApplication,
+} from '../../src/db/index.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 function sampleJob(over: Partial<NormalizedJob> = {}): NormalizedJob {
   return {
-    source: 'greenhouse', externalId: 'g1', company: 'Acme', title: 'Senior Engineer',
-    url: 'https://acme.example/jobs/g1', location: 'Remote', remote: true,
-    description: 'Build things', postedAt: null, raw: { id: 'g1' }, ...over,
+    source: 'greenhouse',
+    externalId: 'g1',
+    company: 'Acme',
+    title: 'Senior Engineer',
+    url: 'https://acme.example/jobs/g1',
+    location: 'Remote',
+    remote: true,
+    description: 'Build things',
+    postedAt: null,
+    raw: { id: 'g1' },
+    ...over,
   };
 }
 
 describe('db', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('inserts a new job with status=new and score null', () => {
     const r = upsertJob(db, sampleJob());
@@ -459,19 +530,34 @@ describe('db', () => {
     expect(r2.inserted).toBe(false);
     const row = getJobById(db, r.id)!;
     expect(row.title).toBe('Staff Engineer'); // mutable field updated
-    expect(row.status).toBe('applied');       // human status preserved
+    expect(row.status).toBe('applied'); // human status preserved
   });
 
   it('persists scoring fields when provided', () => {
-    const r = upsertJob(db, sampleJob(), { score: 87, matchedSkills: ['TS'], missingSkills: ['Go'], reasons: 'strong' });
+    const r = upsertJob(db, sampleJob(), {
+      score: 87,
+      matchedSkills: ['TS'],
+      missingSkills: ['Go'],
+      reasons: 'strong',
+    });
     const row = getJobById(db, r.id)!;
     expect(row.score).toBe(87);
     expect(JSON.parse(row.matched_skills!)).toEqual(['TS']);
   });
 
   it('filters by status and minScore', () => {
-    const a = upsertJob(db, sampleJob({ externalId: 'a' }), { score: 90, matchedSkills: [], missingSkills: [], reasons: '' });
-    upsertJob(db, sampleJob({ externalId: 'b' }), { score: 40, matchedSkills: [], missingSkills: [], reasons: '' });
+    const a = upsertJob(db, sampleJob({ externalId: 'a' }), {
+      score: 90,
+      matchedSkills: [],
+      missingSkills: [],
+      reasons: '',
+    });
+    upsertJob(db, sampleJob({ externalId: 'b' }), {
+      score: 40,
+      matchedSkills: [],
+      missingSkills: [],
+      reasons: '',
+    });
     setStatus(db, a.id, 'interested');
     expect(getJobs(db, { status: 'interested' }).map((j) => j.external_id)).toEqual(['a']);
     expect(getJobs(db, { minScore: 80 }).map((j) => j.external_id)).toEqual(['a']);
@@ -479,8 +565,18 @@ describe('db', () => {
 
   it('upserts applications by job_id', () => {
     const r = upsertJob(db, sampleJob());
-    insertApplication(db, { jobId: r.id, resumePath: 'a.md', coverPath: 'b.md', fitNotesPath: 'c.md' });
-    insertApplication(db, { jobId: r.id, resumePath: 'a2.md', coverPath: 'b2.md', fitNotesPath: 'c2.md' });
+    insertApplication(db, {
+      jobId: r.id,
+      resumePath: 'a.md',
+      coverPath: 'b.md',
+      fitNotesPath: 'c.md',
+    });
+    insertApplication(db, {
+      jobId: r.id,
+      resumePath: 'a2.md',
+      coverPath: 'b2.md',
+      fitNotesPath: 'c2.md',
+    });
     expect(getApplication(db, r.id)!.resume_path).toBe('a2.md');
   });
 });
@@ -494,6 +590,7 @@ Expected: FAIL — modules not found.
 - [ ] **Step 4: Implement `src/db/migrate.ts` and `src/db/index.ts`**
 
 `src/db/migrate.ts`:
+
 ```ts
 import type Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
@@ -508,6 +605,7 @@ export function migrate(db: Database.Database): void {
 ```
 
 `src/db/index.ts`:
+
 ```ts
 import Database from 'better-sqlite3';
 import type { NormalizedJob } from '../sources/types.js';
@@ -523,16 +621,32 @@ export interface JobScoreFields {
 }
 
 export interface JobRow {
-  id: number; source: string; external_id: string; company: string; title: string;
-  url: string; location: string | null; remote: number | null; description: string;
-  score: number | null; matched_skills: string | null; missing_skills: string | null;
-  score_reasons: string | null; status: JobStatus; posted_at: string | null;
-  first_seen: string; raw_json: string;
+  id: number;
+  source: string;
+  external_id: string;
+  company: string;
+  title: string;
+  url: string;
+  location: string | null;
+  remote: number | null;
+  description: string;
+  score: number | null;
+  matched_skills: string | null;
+  missing_skills: string | null;
+  score_reasons: string | null;
+  status: JobStatus;
+  posted_at: string | null;
+  first_seen: string;
+  raw_json: string;
 }
 
 export interface ApplicationRow {
-  id: number; job_id: number; resume_path: string; cover_path: string;
-  fit_notes_path: string; created_at: string;
+  id: number;
+  job_id: number;
+  resume_path: string;
+  cover_path: string;
+  fit_notes_path: string;
+  created_at: string;
 }
 
 export function openDb(file: string): Database.Database {
@@ -551,9 +665,14 @@ export function upsertJob(
     .get(job.source, job.externalId) as { id: number } | undefined;
 
   const common = {
-    company: job.company, title: job.title, url: job.url, location: job.location,
-    remote: job.remote === null ? null : job.remote ? 1 : 0, description: job.description,
-    posted_at: job.postedAt, raw_json: JSON.stringify(job.raw),
+    company: job.company,
+    title: job.title,
+    url: job.url,
+    location: job.location,
+    remote: job.remote === null ? null : job.remote ? 1 : 0,
+    description: job.description,
+    posted_at: job.postedAt,
+    raw_json: JSON.stringify(job.raw),
     score: score?.score ?? null,
     matched_skills: score ? JSON.stringify(score.matchedSkills) : null,
     missing_skills: score ? JSON.stringify(score.missingSkills) : null,
@@ -572,12 +691,19 @@ export function upsertJob(
     return { id: existing.id, inserted: false };
   }
 
-  const info = db.prepare(
-    `INSERT INTO jobs (source, external_id, company, title, url, location, remote, description,
+  const info = db
+    .prepare(
+      `INSERT INTO jobs (source, external_id, company, title, url, location, remote, description,
         score, matched_skills, missing_skills, score_reasons, status, posted_at, first_seen, raw_json)
      VALUES (@source, @external_id, @company, @title, @url, @location, @remote, @description,
         @score, @matched_skills, @missing_skills, @score_reasons, 'new', @posted_at, @first_seen, @raw_json)`,
-  ).run({ ...common, source: job.source, external_id: job.externalId, first_seen: new Date().toISOString() });
+    )
+    .run({
+      ...common,
+      source: job.source,
+      external_id: job.externalId,
+      first_seen: new Date().toISOString(),
+    });
   return { id: Number(info.lastInsertRowid), inserted: true };
 }
 
@@ -587,8 +713,14 @@ export function getJobs(
 ): JobRow[] {
   const clauses: string[] = [];
   const params: Record<string, unknown> = {};
-  if (filter.status) { clauses.push('status = @status'); params.status = filter.status; }
-  if (filter.minScore != null) { clauses.push('score >= @minScore'); params.minScore = filter.minScore; }
+  if (filter.status) {
+    clauses.push('status = @status');
+    params.status = filter.status;
+  }
+  if (filter.minScore != null) {
+    clauses.push('score >= @minScore');
+    params.minScore = filter.minScore;
+  }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const limit = filter.limit ? 'LIMIT @limit' : '';
   if (filter.limit) params.limit = filter.limit;
@@ -603,7 +735,9 @@ export function getJobById(db: Database.Database, id: number): JobRow | undefine
 
 export function existingKeys(db: Database.Database): { ids: Set<string>; urls: Set<string> } {
   const rows = db.prepare('SELECT source, external_id, url FROM jobs').all() as {
-    source: string; external_id: string; url: string;
+    source: string;
+    external_id: string;
+    url: string;
   }[];
   return {
     ids: new Set(rows.map((r) => `${r.source}:${r.external_id}`)),
@@ -629,7 +763,9 @@ export function insertApplication(
 }
 
 export function getApplication(db: Database.Database, jobId: number): ApplicationRow | undefined {
-  return db.prepare('SELECT * FROM applications WHERE job_id = ?').get(jobId) as ApplicationRow | undefined;
+  return db.prepare('SELECT * FROM applications WHERE job_id = ?').get(jobId) as
+    | ApplicationRow
+    | undefined;
 }
 ```
 
@@ -652,6 +788,7 @@ git commit -m "feat(db): sqlite schema, status-preserving upsert, typed queries"
 ## Task 4: Profile schema + store (`profile/schema.ts`, `profile/store.ts`)
 
 **Files:**
+
 - Create: `src/profile/schema.ts`, `src/profile/store.ts`, `test/profile/store.test.ts`
 
 - [ ] **Step 1: Implement `src/profile/schema.ts`** (verbatim from Spec §5.2)
@@ -699,6 +836,7 @@ export type Profile = z.infer<typeof ProfileSchema>;
 - [ ] **Step 2: Write the failing test**
 
 `test/profile/store.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -709,11 +847,30 @@ import { loadProfile, saveProfile, renderProfileMarkdown } from '../../src/profi
 import type { Profile } from '../../src/profile/schema.js';
 
 const sample: Profile = {
-  version: 1, updatedAt: '2026-06-01T00:00:00.000Z',
+  version: 1,
+  updatedAt: '2026-06-01T00:00:00.000Z',
   basics: { name: 'Chris', headline: 'FS Eng', yearsExperience: 8, summary: 'Builds things.' },
   skills: { core: ['TypeScript', 'DynamoDB'], familiar: ['Python'] },
-  experience: [{ company: 'Acme', title: 'Senior Eng', start: '2020-01', end: null, highlights: ['Led X'], tech: ['TS'] }],
-  preferences: { targetRoles: ['Senior FS'], seniority: ['senior'], locations: ['Remote'], remote: 'remote', maxCommuteMiles: null, minBaseComp: null, mustHave: ['TypeScript'], dealbreakers: ['PHP'] },
+  experience: [
+    {
+      company: 'Acme',
+      title: 'Senior Eng',
+      start: '2020-01',
+      end: null,
+      highlights: ['Led X'],
+      tech: ['TS'],
+    },
+  ],
+  preferences: {
+    targetRoles: ['Senior FS'],
+    seniority: ['senior'],
+    locations: ['Remote'],
+    remote: 'remote',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: ['TypeScript'],
+    dealbreakers: ['PHP'],
+  },
   notes: [],
 };
 
@@ -782,8 +939,21 @@ export function saveProfile(cfg: Config, profile: Profile): void {
 
 export function renderProfileMarkdown(p: Profile): string {
   const lines: string[] = [];
-  lines.push(`# ${p.basics.name}`, '', `**${p.basics.headline}** — ${p.basics.yearsExperience} years`, '', p.basics.summary, '');
-  lines.push('## Skills', '', `**Core:** ${p.skills.core.join(', ')}`, `**Familiar:** ${p.skills.familiar.join(', ')}`, '');
+  lines.push(
+    `# ${p.basics.name}`,
+    '',
+    `**${p.basics.headline}** — ${p.basics.yearsExperience} years`,
+    '',
+    p.basics.summary,
+    '',
+  );
+  lines.push(
+    '## Skills',
+    '',
+    `**Core:** ${p.skills.core.join(', ')}`,
+    `**Familiar:** ${p.skills.familiar.join(', ')}`,
+    '',
+  );
   lines.push('## Experience', '');
   for (const e of p.experience) {
     lines.push(`### ${e.title} — ${e.company} (${e.start}–${e.end ?? 'present'})`);
@@ -792,14 +962,18 @@ export function renderProfileMarkdown(p: Profile): string {
     lines.push('');
   }
   const pr = p.preferences;
-  lines.push('## Preferences', '',
+  lines.push(
+    '## Preferences',
+    '',
     `- Target roles: ${pr.targetRoles.join(', ')}`,
     `- Seniority: ${pr.seniority.join(', ')}`,
     `- Locations: ${pr.locations.join(', ')} (remote: ${pr.remote})`,
     `- Max commute: ${pr.maxCommuteMiles ?? 'n/a'} mi`,
     `- Min base comp: ${pr.minBaseComp ?? 'n/a'}`,
     `- Must have: ${pr.mustHave.join(', ')}`,
-    `- Dealbreakers: ${pr.dealbreakers.join(', ')}`, '');
+    `- Dealbreakers: ${pr.dealbreakers.join(', ')}`,
+    '',
+  );
   if (p.notes.length) lines.push('## Notes', '', ...p.notes.map((n) => `- ${n}`), '');
   return lines.join('\n');
 }
@@ -822,6 +996,7 @@ git commit -m "feat(profile): zod schema, json store, markdown render"
 ## Task 5: PDF extraction + source types (`profile/pdf.ts`, `sources/types.ts`)
 
 **Files:**
+
 - Create: `src/sources/types.ts`, `src/profile/pdf.ts`, `test/profile/pdf.test.ts`, `test/fixtures/sample.pdf`
 
 - [ ] **Step 1: Implement `src/sources/types.ts`** (needed by db + sources)
@@ -877,6 +1052,7 @@ PDF
 - [ ] **Step 3: Write the failing test**
 
 `test/profile/pdf.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -922,7 +1098,9 @@ export async function extractPdfText(file: string): Promise<string> {
   return cleanText(Array.isArray(text) ? text.join('\n') : text);
 }
 
-export async function extractProfileSources(dir: string): Promise<{ file: string; text: string }[]> {
+export async function extractProfileSources(
+  dir: string,
+): Promise<{ file: string; text: string }[]> {
   const pdfs = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.pdf'));
   const out: { file: string; text: string }[] = [];
   for (const f of pdfs) out.push({ file: f, text: await extractPdfText(path.join(dir, f)) });
@@ -936,6 +1114,7 @@ export async function extractProfileSources(dir: string): Promise<{ file: string
 
 Run: `npx vitest run test/profile/pdf.test.ts`
 Expected: PASS.
+
 ```bash
 git add src/sources/types.ts src/profile/pdf.ts test/profile/pdf.test.ts test/fixtures/sample.pdf
 git commit -m "feat(profile): pdf text extraction + source types"
@@ -946,6 +1125,7 @@ git commit -m "feat(profile): pdf text extraction + source types"
 ## Task 6: HTTP helper + ATS adapters (`sources/`)
 
 **Files:**
+
 - Create: `src/sources/http.ts`, `src/sources/greenhouse.ts`, `src/sources/lever.ts`, `src/sources/ashby.ts`, `src/sources/index.ts`
 - Create: `test/sources/http.test.ts`, `test/sources/greenhouse.test.ts`, `test/sources/lever.test.ts`
 - Create fixtures: `test/fixtures/greenhouse.json`, `test/fixtures/lever.json`
@@ -953,6 +1133,7 @@ git commit -m "feat(profile): pdf text extraction + source types"
 - [ ] **Step 1: Write the failing test for `http.ts` (`stripHtml` + retry)**
 
 `test/sources/http.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { stripHtml, fetchJson } from '../../src/sources/http.js';
@@ -968,10 +1149,15 @@ describe('stripHtml', () => {
 
 describe('fetchJson', () => {
   it('retries on failure then succeeds', async () => {
-    const f = vi.fn()
+    const f = vi
+      .fn()
       .mockRejectedValueOnce(new Error('net'))
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: 1 }) } as Response);
-    const r = await fetchJson('https://x', { retries: 2, backoffMs: 1, fetchImpl: f as unknown as typeof fetch });
+    const r = await fetchJson('https://x', {
+      retries: 2,
+      backoffMs: 1,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     expect(r).toEqual({ ok: 1 });
     expect(f).toHaveBeenCalledTimes(2);
   });
@@ -984,7 +1170,10 @@ describe('fetchJson', () => {
 import { convert } from 'html-to-text';
 
 export function stripHtml(html: string): string {
-  return convert(html, { wordwrap: false, selectors: [{ selector: 'a', options: { ignoreHref: true } }] }).trim();
+  return convert(html, {
+    wordwrap: false,
+    selectors: [{ selector: 'a', options: { ignoreHref: true } }],
+  }).trim();
 }
 
 export async function fetchJson<T = unknown>(
@@ -1000,7 +1189,8 @@ export async function fetchJson<T = unknown>(
       return (await res.json()) as T;
     } catch (err) {
       lastErr = err;
-      if (attempt < retries) await new Promise((r) => setTimeout(r, backoffMs * 2 ** (attempt - 1)));
+      if (attempt < retries)
+        await new Promise((r) => setTimeout(r, backoffMs * 2 ** (attempt - 1)));
     }
   }
   throw lastErr;
@@ -1012,6 +1202,7 @@ Run: `npx vitest run test/sources/http.test.ts` → PASS.
 - [ ] **Step 3: Create recorded fixtures**
 
 `test/fixtures/greenhouse.json` (shape of `boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true`):
+
 ```json
 {
   "jobs": [
@@ -1028,6 +1219,7 @@ Run: `npx vitest run test/sources/http.test.ts` → PASS.
 ```
 
 `test/fixtures/lever.json` (shape of `api.lever.co/v0/postings/{slug}?mode=json`):
+
 ```json
 [
   {
@@ -1046,6 +1238,7 @@ Run: `npx vitest run test/sources/http.test.ts` → PASS.
 - [ ] **Step 4: Write failing tests for greenhouse + lever adapters**
 
 `test/sources/greenhouse.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -1054,9 +1247,16 @@ import { greenhouse } from '../../src/sources/greenhouse.js';
 
 describe('greenhouse adapter', () => {
   it('normalizes the board response', async () => {
-    const fixture = JSON.parse(readFileSync(path.join(__dirname, '../fixtures/greenhouse.json'), 'utf8'));
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => fixture } as Response);
-    const jobs = await greenhouse.fetchJobs({ source: 'greenhouse', slug: 'acme', name: 'Acme' }, fetchImpl as unknown as typeof fetch);
+    const fixture = JSON.parse(
+      readFileSync(path.join(__dirname, '../fixtures/greenhouse.json'), 'utf8'),
+    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => fixture } as Response);
+    const jobs = await greenhouse.fetchJobs(
+      { source: 'greenhouse', slug: 'acme', name: 'Acme' },
+      fetchImpl as unknown as typeof fetch,
+    );
     expect(jobs).toHaveLength(1);
     const j = jobs[0];
     expect(j.source).toBe('greenhouse');
@@ -1072,6 +1272,7 @@ describe('greenhouse adapter', () => {
 ```
 
 `test/sources/lever.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -1080,9 +1281,16 @@ import { lever } from '../../src/sources/lever.js';
 
 describe('lever adapter', () => {
   it('normalizes the postings response', async () => {
-    const fixture = JSON.parse(readFileSync(path.join(__dirname, '../fixtures/lever.json'), 'utf8'));
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => fixture } as Response);
-    const jobs = await lever.fetchJobs({ source: 'lever', slug: 'acme', name: 'Acme' }, fetchImpl as unknown as typeof fetch);
+    const fixture = JSON.parse(
+      readFileSync(path.join(__dirname, '../fixtures/lever.json'), 'utf8'),
+    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => fixture } as Response);
+    const jobs = await lever.fetchJobs(
+      { source: 'lever', slug: 'acme', name: 'Acme' },
+      fetchImpl as unknown as typeof fetch,
+    );
     expect(jobs[0].externalId).toBe('abc-123');
     expect(jobs[0].title).toBe('Staff Frontend Engineer');
     expect(jobs[0].remote).toBe(true);
@@ -1094,14 +1302,19 @@ describe('lever adapter', () => {
 - [ ] **Step 5: Run them red, then implement the adapters**
 
 `src/sources/greenhouse.ts`:
+
 ```ts
 import { decode } from 'html-to-text'; // not used; see note
 import { fetchJson, stripHtml } from './http.js';
 import type { NormalizedJob, SourceAdapter, WatchlistEntry } from './types.js';
 
 interface GhJob {
-  id: number; title: string; absolute_url: string;
-  location?: { name?: string }; content?: string; updated_at?: string;
+  id: number;
+  title: string;
+  absolute_url: string;
+  location?: { name?: string };
+  content?: string;
+  updated_at?: string;
 }
 
 function isRemote(loc: string | null): boolean | null {
@@ -1112,8 +1325,12 @@ function isRemote(loc: string | null): boolean | null {
 // Greenhouse `content` is HTML-entity-encoded HTML; decode entities then strip tags.
 function decodeEntities(s: string): string {
   return s
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
 }
 
 export const greenhouse: SourceAdapter & {
@@ -1122,29 +1339,45 @@ export const greenhouse: SourceAdapter & {
   source: 'greenhouse',
   async fetchJobs(entry, fetchImpl = fetch) {
     const url = `https://boards-api.greenhouse.io/v1/boards/${entry.slug}/jobs?content=true`;
-    const data = await fetchJson<{ jobs: GhJob[] }>(url, { init: { headers: { accept: 'application/json' } }, fetchImpl });
+    const data = await fetchJson<{ jobs: GhJob[] }>(url, {
+      init: { headers: { accept: 'application/json' } },
+      fetchImpl,
+    });
     return (data.jobs ?? []).map((j) => {
       const location = j.location?.name ?? null;
       return {
-        source: 'greenhouse', externalId: String(j.id), company: entry.name ?? entry.slug,
-        title: j.title, url: j.absolute_url, location, remote: isRemote(location),
-        description: stripHtml(decodeEntities(j.content ?? '')), postedAt: j.updated_at ?? null, raw: j,
+        source: 'greenhouse',
+        externalId: String(j.id),
+        company: entry.name ?? entry.slug,
+        title: j.title,
+        url: j.absolute_url,
+        location,
+        remote: isRemote(location),
+        description: stripHtml(decodeEntities(j.content ?? '')),
+        postedAt: j.updated_at ?? null,
+        raw: j,
       };
     });
   },
 };
 ```
+
 > Remove the unused `decode` import; it's a reminder that html-to-text doesn't decode pre-encoded entities — we do it explicitly in `decodeEntities`.
 
 `src/sources/lever.ts`:
+
 ```ts
 import { fetchJson, stripHtml } from './http.js';
 import type { NormalizedJob, SourceAdapter, WatchlistEntry } from './types.js';
 
 interface LeverPosting {
-  id: string; text: string; hostedUrl: string;
+  id: string;
+  text: string;
+  hostedUrl: string;
   categories?: { location?: string; commitment?: string };
-  descriptionPlain?: string; description?: string; createdAt?: number;
+  descriptionPlain?: string;
+  description?: string;
+  createdAt?: number;
 }
 
 export const lever: SourceAdapter & {
@@ -1157,11 +1390,16 @@ export const lever: SourceAdapter & {
     return (data ?? []).map((p) => {
       const location = p.categories?.location ?? null;
       return {
-        source: 'lever', externalId: p.id, company: entry.name ?? entry.slug,
-        title: p.text, url: p.hostedUrl, location,
+        source: 'lever',
+        externalId: p.id,
+        company: entry.name ?? entry.slug,
+        title: p.text,
+        url: p.hostedUrl,
+        location,
         remote: location ? /remote/i.test(location) : null,
         description: p.descriptionPlain ?? stripHtml(p.description ?? ''),
-        postedAt: p.createdAt ? new Date(p.createdAt).toISOString() : null, raw: p,
+        postedAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
+        raw: p,
       };
     });
   },
@@ -1169,14 +1407,21 @@ export const lever: SourceAdapter & {
 ```
 
 `src/sources/ashby.ts` (best-effort per Ashby's public posting API; record a real fixture to confirm):
+
 ```ts
 import { fetchJson, stripHtml } from './http.js';
 import type { NormalizedJob, SourceAdapter, WatchlistEntry } from './types.js';
 
 interface AshbyJob {
-  id: string; title: string; location?: string; isRemote?: boolean;
-  jobUrl?: string; applyUrl?: string; descriptionHtml?: string;
-  descriptionPlain?: string; publishedAt?: string;
+  id: string;
+  title: string;
+  location?: string;
+  isRemote?: boolean;
+  jobUrl?: string;
+  applyUrl?: string;
+  descriptionHtml?: string;
+  descriptionPlain?: string;
+  publishedAt?: string;
 }
 
 export const ashby: SourceAdapter & {
@@ -1186,15 +1431,24 @@ export const ashby: SourceAdapter & {
   async fetchJobs(entry, fetchImpl = fetch) {
     const url = `https://api.ashbyhq.com/posting-api/job-board/${entry.slug}`;
     const data = await fetchJson<{ jobs: AshbyJob[] }>(url, {
-      init: { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) },
+      init: {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      },
       fetchImpl,
     });
     return (data.jobs ?? []).map((j) => ({
-      source: 'ashby', externalId: j.id, company: entry.name ?? entry.slug, title: j.title,
-      url: j.jobUrl ?? j.applyUrl ?? '', location: j.location ?? null,
+      source: 'ashby',
+      externalId: j.id,
+      company: entry.name ?? entry.slug,
+      title: j.title,
+      url: j.jobUrl ?? j.applyUrl ?? '',
+      location: j.location ?? null,
       remote: j.isRemote ?? (j.location ? /remote/i.test(j.location) : null),
       description: j.descriptionPlain ?? stripHtml(j.descriptionHtml ?? ''),
-      postedAt: j.publishedAt ?? null, raw: j,
+      postedAt: j.publishedAt ?? null,
+      raw: j,
     }));
   },
 };
@@ -1212,7 +1466,11 @@ import { lever } from './lever.js';
 import { ashby } from './ashby.js';
 import type { SourceAdapter, WatchlistEntry } from './types.js';
 
-export const adapters: Record<WatchlistEntry['source'], SourceAdapter> = { greenhouse, lever, ashby };
+export const adapters: Record<WatchlistEntry['source'], SourceAdapter> = {
+  greenhouse,
+  lever,
+  ashby,
+};
 
 export function loadWatchlist(file: string): WatchlistEntry[] {
   const doc = parse(readFileSync(file, 'utf8')) as { companies?: WatchlistEntry[] };
@@ -1230,12 +1488,14 @@ git commit -m "feat(sources): http helper + greenhouse/lever/ashby adapters + wa
 ## Task 7: Ingest pipeline (`ingest/dedup.ts`, `ingest/prefilter.ts`, `ingest/pipeline.ts`)
 
 **Files:**
+
 - Create: `src/ingest/dedup.ts`, `src/ingest/prefilter.ts`, `src/ingest/pipeline.ts`
 - Create: `test/ingest/dedup.test.ts`, `test/ingest/prefilter.test.ts`, `test/ingest/pipeline.test.ts`
 
 - [ ] **Step 1: Write the failing test for `dedup`**
 
 `test/ingest/dedup.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openDb, migrate, upsertJob } from '../../src/db/index.js';
@@ -1243,27 +1503,42 @@ import { dedup } from '../../src/ingest/dedup.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const j = (over: Partial<NormalizedJob>): NormalizedJob => ({
-  source: 'greenhouse', externalId: 'x', company: 'A', title: 'T', url: 'u', location: null,
-  remote: null, description: '', postedAt: null, raw: {}, ...over,
+  source: 'greenhouse',
+  externalId: 'x',
+  company: 'A',
+  title: 'T',
+  url: 'u',
+  location: null,
+  remote: null,
+  description: '',
+  postedAt: null,
+  raw: {},
+  ...over,
 });
 
 describe('dedup', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('drops jobs already in db by (source, externalId) or url', () => {
     upsertJob(db, j({ externalId: 'a', url: 'http://a' }));
     const { fresh, duplicates } = dedup(db, [
-      j({ externalId: 'a', url: 'http://a' }),     // dup by key
-      j({ externalId: 'b', url: 'http://a' }),     // dup by url
-      j({ externalId: 'c', url: 'http://c' }),     // fresh
+      j({ externalId: 'a', url: 'http://a' }), // dup by key
+      j({ externalId: 'b', url: 'http://a' }), // dup by url
+      j({ externalId: 'c', url: 'http://c' }), // fresh
     ]);
     expect(fresh.map((f) => f.externalId)).toEqual(['c']);
     expect(duplicates).toHaveLength(2);
   });
 
   it('dedups within the same batch', () => {
-    const { fresh } = dedup(db, [j({ externalId: 'a', url: 'http://a' }), j({ externalId: 'a', url: 'http://a' })]);
+    const { fresh } = dedup(db, [
+      j({ externalId: 'a', url: 'http://a' }),
+      j({ externalId: 'a', url: 'http://a' }),
+    ]);
     expect(fresh).toHaveLength(1);
   });
 });
@@ -1298,11 +1573,13 @@ export function dedup(
   return { fresh, duplicates };
 }
 ```
+
 Run: `npx vitest run test/ingest/dedup.test.ts` → PASS.
 
 - [ ] **Step 3: Write the failing test for `prefilter` (Spec §6.3)**
 
 `test/ingest/prefilter.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { prefilter } from '../../src/ingest/prefilter.js';
@@ -1310,17 +1587,37 @@ import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const profile = (over: Partial<Profile['preferences']> = {}): Profile => ({
-  version: 1, updatedAt: '', basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
-  skills: { core: [], familiar: [] }, experience: [], notes: [],
+  version: 1,
+  updatedAt: '',
+  basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
   preferences: {
-    targetRoles: [], seniority: ['senior', 'staff'], locations: [], remote: 'any',
-    maxCommuteMiles: null, minBaseComp: null, mustHave: ['TypeScript'], dealbreakers: ['PHP'], ...over,
+    targetRoles: [],
+    seniority: ['senior', 'staff'],
+    locations: [],
+    remote: 'any',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: ['TypeScript'],
+    dealbreakers: ['PHP'],
+    ...over,
   },
 });
 
 const j = (over: Partial<NormalizedJob>): NormalizedJob => ({
-  source: 'greenhouse', externalId: 'x', company: 'A', title: 'Senior Engineer', url: 'u',
-  location: 'Remote', remote: true, description: 'We use TypeScript and Node', postedAt: null, raw: {}, ...over,
+  source: 'greenhouse',
+  externalId: 'x',
+  company: 'A',
+  title: 'Senior Engineer',
+  url: 'u',
+  location: 'Remote',
+  remote: true,
+  description: 'We use TypeScript and Node',
+  postedAt: null,
+  raw: {},
+  ...over,
 });
 
 describe('prefilter', () => {
@@ -1340,7 +1637,10 @@ describe('prefilter', () => {
   });
 
   it('drops onsite job when preference is remote', () => {
-    const { dropped } = prefilter([j({ remote: false, location: 'New York, NY' })], profile({ remote: 'remote' }));
+    const { dropped } = prefilter(
+      [j({ remote: false, location: 'New York, NY' })],
+      profile({ remote: 'remote' }),
+    );
     expect(dropped[0].reason).toMatch(/remote/i);
   });
 
@@ -1363,7 +1663,10 @@ describe('prefilter', () => {
 import type { Profile } from '../profile/schema.js';
 import type { NormalizedJob } from '../sources/types.js';
 
-export interface Dropped { job: NormalizedJob; reason: string }
+export interface Dropped {
+  job: NormalizedJob;
+  reason: string;
+}
 
 const JUNIOR = /\b(intern|internship|junior|jr\.?|entry[- ]level|new grad|graduate)\b/i;
 
@@ -1383,7 +1686,10 @@ export function prefilter(
     const text = hay(job);
 
     const db = pref.dealbreakers.find((d) => d && text.includes(d.toLowerCase()));
-    if (db) { dropped.push({ job, reason: `dealbreaker: "${db}"` }); continue; }
+    if (db) {
+      dropped.push({ job, reason: `dealbreaker: "${db}"` });
+      continue;
+    }
 
     if (pref.mustHave.length && !pref.mustHave.some((m) => text.includes(m.toLowerCase()))) {
       dropped.push({ job, reason: `missing all must-have terms: ${pref.mustHave.join(', ')}` });
@@ -1406,11 +1712,13 @@ export function prefilter(
   return { kept, dropped };
 }
 ```
+
 Run: `npx vitest run test/ingest/prefilter.test.ts` → PASS (all 6).
 
 - [ ] **Step 5: Write the failing test for `pipeline.ingest` (injected scorer)**
 
 `test/ingest/pipeline.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openDb, migrate, getJobs } from '../../src/db/index.js';
@@ -1419,21 +1727,48 @@ import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const profile: Profile = {
-  version: 1, updatedAt: '', basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
-  skills: { core: [], familiar: [] }, experience: [], notes: [],
-  preferences: { targetRoles: [], seniority: [], locations: [], remote: 'any', maxCommuteMiles: null, minBaseComp: null, mustHave: [], dealbreakers: ['PHP'] },
+  version: 1,
+  updatedAt: '',
+  basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {
+    targetRoles: [],
+    seniority: [],
+    locations: [],
+    remote: 'any',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: [],
+    dealbreakers: ['PHP'],
+  },
 };
 const j = (id: string, over: Partial<NormalizedJob> = {}): NormalizedJob => ({
-  source: 'greenhouse', externalId: id, company: 'A', title: 'Senior Engineer', url: `http://${id}`,
-  location: 'Remote', remote: true, description: 'TypeScript', postedAt: null, raw: {}, ...over,
+  source: 'greenhouse',
+  externalId: id,
+  company: 'A',
+  title: 'Senior Engineer',
+  url: `http://${id}`,
+  location: 'Remote',
+  remote: true,
+  description: 'TypeScript',
+  postedAt: null,
+  raw: {},
+  ...over,
 });
 
 describe('ingest', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('dedups, prefilters, persists with status=new and no scorer leaves score null', async () => {
-    const summary = await ingest(db, [j('a'), j('b', { description: 'PHP only' })], profile, { score: null });
+    const summary = await ingest(db, [j('a'), j('b', { description: 'PHP only' })], profile, {
+      score: null,
+    });
     expect(summary.added).toBe(1);
     expect(summary.dropped).toBe(1);
     const rows = getJobs(db, {});
@@ -1444,7 +1779,12 @@ describe('ingest', () => {
 
   it('applies an injected scorer', async () => {
     const scorer = async (jobs: NormalizedJob[]) =>
-      new Map(jobs.map((x) => [`${x.source}:${x.externalId}`, { score: 75, matchedSkills: ['TS'], missingSkills: [], reasons: 'ok' }]));
+      new Map(
+        jobs.map((x) => [
+          `${x.source}:${x.externalId}`,
+          { score: 75, matchedSkills: ['TS'], missingSkills: [], reasons: 'ok' },
+        ]),
+      );
     const summary = await ingest(db, [j('a')], profile, { score: scorer });
     expect(summary.added).toBe(1);
     expect(getJobs(db, {})[0].score).toBe(75);
@@ -1495,11 +1835,16 @@ export async function ingest(
     else updated++;
   }
   return {
-    fetched: jobs.length, duplicates: duplicates.length, dropped: dropped.length,
-    droppedDetail: dropped, added, updated,
+    fetched: jobs.length,
+    duplicates: duplicates.length,
+    dropped: dropped.length,
+    droppedDetail: dropped,
+    added,
+    updated,
   };
 }
 ```
+
 Run: `npx vitest run test/ingest/pipeline.test.ts` → PASS.
 
 - [ ] **Step 7: Commit**
@@ -1514,19 +1859,27 @@ git commit -m "feat(ingest): dedup, deterministic prefilter, injectable ingest p
 ## Task 8: `find --no-score` command + table UI
 
 **Files:**
+
 - Create: `src/ui/table.ts`, `src/commands/find.ts`, `test/ui/table.test.ts`, `test/commands/find.test.ts`
 - Modify: `src/cli.ts` (register `find`)
 
 - [ ] **Step 1: Write the failing test for the table formatter**
 
 `test/ui/table.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { formatTable } from '../../src/ui/table.js';
 
 describe('formatTable', () => {
   it('renders aligned columns with a header', () => {
-    const out = formatTable(['ID', 'Title'], [['1', 'Senior Eng'], ['2', 'Staff Eng']]);
+    const out = formatTable(
+      ['ID', 'Title'],
+      [
+        ['1', 'Senior Eng'],
+        ['2', 'Staff Eng'],
+      ],
+    );
     const lines = out.split('\n');
     expect(lines[0]).toMatch(/ID\s+Title/);
     expect(lines).toHaveLength(4); // header + separator + 2 rows
@@ -1543,16 +1896,22 @@ describe('formatTable', () => {
 ```ts
 export function formatTable(headers: string[], rows: string[][]): string {
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)));
-  const pad = (cells: string[]) => cells.map((c, i) => (c ?? '').padEnd(widths[i])).join('  ').trimEnd();
+  const pad = (cells: string[]) =>
+    cells
+      .map((c, i) => (c ?? '').padEnd(widths[i]))
+      .join('  ')
+      .trimEnd();
   const sep = widths.map((w) => '-'.repeat(w)).join('  ');
   return [pad(headers), sep, ...rows.map(pad)].join('\n');
 }
 ```
+
 Run: `npx vitest run test/ui/table.test.ts` → PASS.
 
 - [ ] **Step 3: Write the failing test for the `find` handler (mocked adapters + temp db)**
 
 `test/commands/find.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openDb, migrate, getJobs } from '../../src/db/index.js';
@@ -1561,25 +1920,53 @@ import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob, WatchlistEntry } from '../../src/sources/types.js';
 
 const profile: Profile = {
-  version: 1, updatedAt: '', basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
-  skills: { core: [], familiar: [] }, experience: [], notes: [],
-  preferences: { targetRoles: [], seniority: [], locations: [], remote: 'any', maxCommuteMiles: null, minBaseComp: null, mustHave: [], dealbreakers: [] },
+  version: 1,
+  updatedAt: '',
+  basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
+  preferences: {
+    targetRoles: [],
+    seniority: [],
+    locations: [],
+    remote: 'any',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: [],
+    dealbreakers: [],
+  },
 };
 const job = (id: string): NormalizedJob => ({
-  source: 'greenhouse', externalId: id, company: 'Acme', title: 'Senior Eng', url: `http://${id}`,
-  location: 'Remote', remote: true, description: 'TS', postedAt: null, raw: {},
+  source: 'greenhouse',
+  externalId: id,
+  company: 'Acme',
+  title: 'Senior Eng',
+  url: `http://${id}`,
+  location: 'Remote',
+  remote: true,
+  description: 'TS',
+  postedAt: null,
+  raw: {},
 });
 
 describe('runFind', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('fetches from each watchlist entry via injected adapters and persists', async () => {
     const watchlist: WatchlistEntry[] = [{ source: 'greenhouse', slug: 'acme', name: 'Acme' }];
     const fetchAdapter = vi.fn().mockResolvedValue([job('a'), job('b')]);
     const summary = await runFind({
-      db, profile, watchlist, score: null,
-      fetchEntry: fetchAdapter, log: () => {},
+      db,
+      profile,
+      watchlist,
+      score: null,
+      fetchEntry: fetchAdapter,
+      log: () => {},
     });
     expect(fetchAdapter).toHaveBeenCalledOnce();
     expect(summary.added).toBe(2);
@@ -1591,10 +1978,18 @@ describe('runFind', () => {
       { source: 'greenhouse', slug: 'bad' },
       { source: 'lever', slug: 'good' },
     ];
-    const fetchEntry = vi.fn()
+    const fetchEntry = vi
+      .fn()
       .mockRejectedValueOnce(new Error('boom'))
       .mockResolvedValueOnce([job('c')]);
-    const summary = await runFind({ db, profile, watchlist, score: null, fetchEntry, log: () => {} });
+    const summary = await runFind({
+      db,
+      profile,
+      watchlist,
+      score: null,
+      fetchEntry,
+      log: () => {},
+    });
     expect(summary.added).toBe(1); // the good one still landed
   });
 });
@@ -1643,19 +2038,36 @@ export async function runFind(deps: RunFindDeps): Promise<IngestSummary> {
   // Always log dropped reasons to stderr (Spec §6.3)
   if (summary.dropped > 0) {
     console.error(`Prefilter dropped ${summary.dropped} job(s):`);
-    for (const d of summary.droppedDetail) console.error(`  - ${d.job.title} @ ${d.job.company}: ${d.reason}`);
+    for (const d of summary.droppedDetail)
+      console.error(`  - ${d.job.title} @ ${d.job.company}: ${d.reason}`);
   }
   if (deps.keepDropped) {
     log('\nDropped (not persisted):');
-    log(formatTable(['Title', 'Company', 'Reason'], summary.droppedDetail.map((d) => [d.job.title, d.job.company, d.reason])));
+    log(
+      formatTable(
+        ['Title', 'Company', 'Reason'],
+        summary.droppedDetail.map((d) => [d.job.title, d.job.company, d.reason]),
+      ),
+    );
   }
 
   const rows = getJobs(deps.db, { minScore: deps.minScore, limit: deps.limit });
-  log(`\nFetched ${summary.fetched}, added ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`);
-  log(formatTable(
-    ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
-    rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.status, r.title, r.company, r.location ?? '']),
-  ));
+  log(
+    `\nFetched ${summary.fetched}, added ${summary.added}, updated ${summary.updated}, dropped ${summary.dropped}.`,
+  );
+  log(
+    formatTable(
+      ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
+      rows.map((r) => [
+        String(r.id),
+        r.score == null ? '—' : String(r.score),
+        r.status,
+        r.title,
+        r.company,
+        r.location ?? '',
+      ]),
+    ),
+  );
   return summary;
 }
 ```
@@ -1668,6 +2080,7 @@ Expected: PASS (both).
 - [ ] **Step 6: Register `find` in `src/cli.ts`**
 
 Add inside `cli.ts` before `program.parseAsync`:
+
 ```ts
 import { loadConfig } from './config.js';
 import { openDb, migrate } from './db/index.js';
@@ -1686,11 +2099,21 @@ program
     const cfg = loadConfig();
     const profile = loadProfile(cfg);
     if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
-    const db = openDb(cfg.dbPath); migrate(db);
+    const db = openDb(cfg.dbPath);
+    migrate(db);
     const watchlist = loadWatchlist(cfg.companiesFile);
-    await runFind({ db, profile, watchlist, score: null, keepDropped: opts.keepDropped, limit: opts.limit, minScore: opts.minScore });
+    await runFind({
+      db,
+      profile,
+      watchlist,
+      score: null,
+      keepDropped: opts.keepDropped,
+      limit: opts.limit,
+      minScore: opts.minScore,
+    });
   });
 ```
+
 > `--no-score` currently has no effect (no scorer exists until Plan 2); the flag is wired now so the CLI surface is stable. Plan 2 replaces `score: null` with the real scorer unless `--no-score`.
 
 Run: `npm run build && node dist/cli.js find --help`
@@ -1708,12 +2131,14 @@ git commit -m "feat(find): watchlist crawl + ranked table (prefilter-only), cli 
 ## Task 9: `pipeline` + `status` commands
 
 **Files:**
+
 - Create: `src/commands/pipeline.ts`, `test/commands/pipeline.test.ts`
 - Modify: `src/cli.ts` (register `pipeline`, `status`)
 
 - [ ] **Step 1: Write the failing test**
 
 `test/commands/pipeline.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openDb, migrate, upsertJob, getJobById } from '../../src/db/index.js';
@@ -1721,13 +2146,24 @@ import { renderPipeline, changeStatus } from '../../src/commands/pipeline.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const j = (id: string): NormalizedJob => ({
-  source: 'greenhouse', externalId: id, company: 'Acme', title: 'Senior Eng', url: `http://${id}`,
-  location: 'Remote', remote: true, description: '', postedAt: null, raw: {},
+  source: 'greenhouse',
+  externalId: id,
+  company: 'Acme',
+  title: 'Senior Eng',
+  url: `http://${id}`,
+  location: 'Remote',
+  remote: true,
+  description: '',
+  postedAt: null,
+  raw: {},
 });
 
 describe('pipeline + status', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('renders a table filtered by status', () => {
     const a = upsertJob(db, j('a'));
@@ -1767,16 +2203,25 @@ export function renderPipeline(
   const rows = getJobs(db, filter);
   return formatTable(
     ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
-    rows.map((r) => [String(r.id), r.score == null ? '—' : String(r.score), r.status, r.title, r.company, r.location ?? '']),
+    rows.map((r) => [
+      String(r.id),
+      r.score == null ? '—' : String(r.score),
+      r.status,
+      r.title,
+      r.company,
+      r.location ?? '',
+    ]),
   );
 }
 
 export function changeStatus(db: Database.Database, id: number, status: JobStatus): boolean {
-  if (!STATUSES.includes(status)) throw new Error(`Invalid status "${status}". Use one of: ${STATUSES.join(', ')}`);
+  if (!STATUSES.includes(status))
+    throw new Error(`Invalid status "${status}". Use one of: ${STATUSES.join(', ')}`);
   if (!getJobById(db, id)) throw new Error(`No job with id ${id}.`);
   return setStatus(db, id, status);
 }
 ```
+
 Run: `npx vitest run test/commands/pipeline.test.ts` → PASS (all 3).
 
 - [ ] **Step 3: Register `pipeline` + `status` in `src/cli.ts`**
@@ -1792,8 +2237,11 @@ program
   .option('--min-score <n>', 'minimum score', (v) => parseInt(v, 10))
   .action((opts) => {
     const cfg = loadConfig();
-    const db = openDb(cfg.dbPath); migrate(db);
-    console.log(renderPipeline(db, { status: opts.status as JobStatus | undefined, minScore: opts.minScore }));
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    console.log(
+      renderPipeline(db, { status: opts.status as JobStatus | undefined, minScore: opts.minScore }),
+    );
   });
 
 program
@@ -1803,7 +2251,8 @@ program
   .argument('<state>', 'new | interested | applied | rejected')
   .action((jobId: number, state: string) => {
     const cfg = loadConfig();
-    const db = openDb(cfg.dbPath); migrate(db);
+    const db = openDb(cfg.dbPath);
+    migrate(db);
     changeStatus(db, jobId, state as JobStatus);
     console.log(`Job ${jobId} → ${state}`);
   });
@@ -1815,11 +2264,13 @@ Expected: both helps render.
 - [ ] **Step 4: Full green + lint, then commit**
 
 Run:
+
 ```bash
 npm test
 npm run lint
 npm run build
 ```
+
 Expected: all tests pass; lint clean (boundary rule passes — no core→agent imports exist yet); build succeeds.
 
 ```bash

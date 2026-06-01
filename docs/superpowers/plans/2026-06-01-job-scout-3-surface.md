@@ -14,22 +14,23 @@
 
 ## File Structure (Plan 3)
 
-| File | Responsibility |
-|------|----------------|
-| `src/mcp/handlers.ts` | Pure, testable tool handler functions over the core |
-| `src/mcp/server.ts` | Register handlers as MCP tools + connect stdio transport |
-| `test/mcp/handlers.test.ts` | Handler unit tests (mocked core/LLM) |
-| Modify: `src/cli.ts` | register `mcp` command |
-| `README.md` | Full rewrite (Spec §12) |
-| `LICENSE` | MIT |
-| `.github/workflows/ci.yml` | lint + test + build on push/PR |
-| `docs/DEMO.md` | copy-paste transcript referenced by README |
+| File                        | Responsibility                                           |
+| --------------------------- | -------------------------------------------------------- |
+| `src/mcp/handlers.ts`       | Pure, testable tool handler functions over the core      |
+| `src/mcp/server.ts`         | Register handlers as MCP tools + connect stdio transport |
+| `test/mcp/handlers.test.ts` | Handler unit tests (mocked core/LLM)                     |
+| Modify: `src/cli.ts`        | register `mcp` command                                   |
+| `README.md`                 | Full rewrite (Spec §12)                                  |
+| `LICENSE`                   | MIT                                                      |
+| `.github/workflows/ci.yml`  | lint + test + build on push/PR                           |
+| `docs/DEMO.md`              | copy-paste transcript referenced by README               |
 
 ---
 
 ## Task 17: Published MCP server
 
 **Files:**
+
 - Create: `src/mcp/handlers.ts`, `src/mcp/server.ts`, `test/mcp/handlers.test.ts`
 - Modify: `package.json` (dep), `src/cli.ts` (register `mcp`)
 
@@ -40,6 +41,7 @@ Run: `npm install @modelcontextprotocol/sdk`
 - [ ] **Step 2: Write the failing test for the handlers (mock core + LLM)**
 
 `test/mcp/handlers.test.ts`:
+
 ```ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openDb, migrate, upsertJob } from '../../src/db/index.js';
@@ -47,12 +49,41 @@ import { makeHandlers } from '../../src/mcp/handlers.js';
 import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
-const profile = { preferences: { dealbreakers: [], mustHave: [], seniority: [], remote: 'any', targetRoles: [], locations: [], maxCommuteMiles: null, minBaseComp: null }, skills: { core: [], familiar: [] }, experience: [], notes: [], basics: { name: 'C' } } as unknown as Profile;
-const job = (id: string): NormalizedJob => ({ source: 'greenhouse', externalId: id, company: 'Acme', title: 'Senior Eng', url: `http://${id}`, location: 'Remote', remote: true, description: 'TS', postedAt: null, raw: {} });
+const profile = {
+  preferences: {
+    dealbreakers: [],
+    mustHave: [],
+    seniority: [],
+    remote: 'any',
+    targetRoles: [],
+    locations: [],
+    maxCommuteMiles: null,
+    minBaseComp: null,
+  },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
+  basics: { name: 'C' },
+} as unknown as Profile;
+const job = (id: string): NormalizedJob => ({
+  source: 'greenhouse',
+  externalId: id,
+  company: 'Acme',
+  title: 'Senior Eng',
+  url: `http://${id}`,
+  location: 'Remote',
+  remote: true,
+  description: 'TS',
+  postedAt: null,
+  raw: {},
+});
 
 describe('mcp handlers', () => {
   let db: ReturnType<typeof openDb>;
-  beforeEach(() => { db = openDb(':memory:'); migrate(db); });
+  beforeEach(() => {
+    db = openDb(':memory:');
+    migrate(db);
+  });
 
   it('query_pipeline returns rows as structured json', () => {
     upsertJob(db, job('a'));
@@ -71,9 +102,17 @@ describe('mcp handlers', () => {
 
   it('tailor returns gap questions instead of prompting (non-interactive)', async () => {
     const id = upsertJob(db, job('a')).id;
-    const identifyGaps = vi.fn().mockResolvedValue({ gaps: [{ skill: 'Kafka', question: 'Kafka experience?' }] });
-    const synthesize = vi.fn().mockResolvedValue({ resumeSummary: 'r', coverLetter: 'c', fitNotes: 'f' });
-    const h = makeHandlers({ db, profile, deps: { identifyGaps, synthesize, outputDir: '/tmp/js-mcp' } as never });
+    const identifyGaps = vi
+      .fn()
+      .mockResolvedValue({ gaps: [{ skill: 'Kafka', question: 'Kafka experience?' }] });
+    const synthesize = vi
+      .fn()
+      .mockResolvedValue({ resumeSummary: 'r', coverLetter: 'c', fitNotes: 'f' });
+    const h = makeHandlers({
+      db,
+      profile,
+      deps: { identifyGaps, synthesize, outputDir: '/tmp/js-mcp' } as never,
+    });
     const out = await h.tailor({ jobId: id });
     expect(out.gapQuestions).toEqual(['Kafka experience?']);
     expect(out.paths.coverPath).toContain('cover-letter.md');
@@ -99,7 +138,11 @@ export interface HandlerDeps {
   scorer: Scorer | null;
   fetchPosting?: (url: string) => Promise<PostingText>;
   identifyGaps?: (profile: Profile, postingText: string) => Promise<Gaps>;
-  synthesize?: (args: { profile: Profile; postingText: string; extra?: string }) => Promise<TailorOutput>;
+  synthesize?: (args: {
+    profile: Profile;
+    postingText: string;
+    extra?: string;
+  }) => Promise<TailorOutput>;
   outputDir?: string;
   companiesFile?: string;
 }
@@ -116,7 +159,11 @@ export function makeHandlers(ctx: { db: Database.Database; profile: Profile; dep
       const watchlist = loadWatchlist(deps.companiesFile!);
       const all: NormalizedJob[] = [];
       for (const e of watchlist) {
-        try { all.push(...(await adapters[e.source].fetchJobs(e))); } catch { /* isolate */ }
+        try {
+          all.push(...(await adapters[e.source].fetchJobs(e)));
+        } catch {
+          /* isolate */
+        }
       }
       const summary = await ingest(db, all, profile, { score: deps.scorer });
       return { ...summary, jobs: getJobs(db, { minScore: args.minScore, limit: args.limit }) };
@@ -126,22 +173,33 @@ export function makeHandlers(ctx: { db: Database.Database; profile: Profile; dep
       const fetchPosting = deps.fetchPosting ?? ((u: string) => fetchPostingText(u));
       const jobs: NormalizedJob[] = [];
       for (const url of args.urls) {
-        try { jobs.push(urlToNormalizedJob(url, await fetchPosting(url))); } catch { /* isolate */ }
+        try {
+          jobs.push(urlToNormalizedJob(url, await fetchPosting(url)));
+        } catch {
+          /* isolate */
+        }
       }
       const summary = await ingest(db, jobs, profile, { score: deps.scorer });
       return summary;
     },
 
     async tailor(args: { jobId?: number; url?: string; text?: string; opus?: boolean }) {
-      let company = 'company', title = 'role', postingText = '';
+      let company = 'company',
+        title = 'role',
+        postingText = '';
       let jobId: number | undefined;
       if (args.jobId != null) {
         const job = getJobById(db, args.jobId);
         if (!job) throw new Error(`No job with id ${args.jobId}.`);
-        jobId = job.id; company = job.company; title = job.title; postingText = job.description;
+        jobId = job.id;
+        company = job.company;
+        title = job.title;
+        postingText = job.description;
       } else if (args.url) {
-        const p = (deps.fetchPosting ?? ((u: string) => fetchPostingText(u)));
-        const r = await p(args.url); title = r.title ?? title; postingText = r.text;
+        const p = deps.fetchPosting ?? ((u: string) => fetchPostingText(u));
+        const r = await p(args.url);
+        title = r.title ?? title;
+        postingText = r.text;
       } else if (args.text) {
         postingText = args.text;
       } else {
@@ -154,7 +212,13 @@ export function makeHandlers(ctx: { db: Database.Database; profile: Profile; dep
         : [];
 
       const result = await tailorPosting({
-        db, outputDir: deps.outputDir!, profile, jobId, company, title, postingText,
+        db,
+        outputDir: deps.outputDir!,
+        profile,
+        jobId,
+        company,
+        title,
+        postingText,
         synthesize: deps.synthesize!,
       });
       return { paths: result, gapQuestions };
@@ -183,37 +247,76 @@ export async function startMcpServer(): Promise<void> {
   const cfg = loadConfig();
   const profile = loadProfile(cfg);
   if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
-  const db = openDb(cfg.dbPath); migrate(db);
+  const db = openDb(cfg.dbPath);
+  migrate(db);
   const client = createClient(cfg);
 
   const h = makeHandlers({
-    db, profile,
+    db,
+    profile,
     deps: {
       scorer: makeScorer({ client, model: cfg.models.worker, batchSize: cfg.scoringBatchSize }),
       companiesFile: cfg.companiesFile,
       outputDir: cfg.outputDir,
-      identifyGaps: (p, posting) => structuredCall({ client, model: cfg.models.worker, system: GAP_SYSTEM, user: gapUserPrompt(p, posting), toolName: 'emit_gaps', schema: GapsSchema }),
-      synthesize: ({ profile, postingText, extra }) => structuredCall({ client, model: cfg.models.worker, system: TAILOR_SYSTEM, user: tailorUserPrompt(profile, postingText, extra), toolName: 'emit_tailored', schema: TailorOutputSchema, maxTokens: 4096 }),
+      identifyGaps: (p, posting) =>
+        structuredCall({
+          client,
+          model: cfg.models.worker,
+          system: GAP_SYSTEM,
+          user: gapUserPrompt(p, posting),
+          toolName: 'emit_gaps',
+          schema: GapsSchema,
+        }),
+      synthesize: ({ profile, postingText, extra }) =>
+        structuredCall({
+          client,
+          model: cfg.models.worker,
+          system: TAILOR_SYSTEM,
+          user: tailorUserPrompt(profile, postingText, extra),
+          toolName: 'emit_tailored',
+          schema: TailorOutputSchema,
+          maxTokens: 4096,
+        }),
     },
   });
 
   const server = new McpServer({ name: 'job-scout', version: '0.1.0' });
 
-  server.tool('query_pipeline', 'View tracked jobs in the local pipeline.',
+  server.tool(
+    'query_pipeline',
+    'View tracked jobs in the local pipeline.',
     { status: z.string().optional(), minScore: z.number().optional() },
-    async (a) => ({ content: [{ type: 'text', text: JSON.stringify(h.queryPipeline(a as never), null, 2) }] }));
+    async (a) => ({
+      content: [{ type: 'text', text: JSON.stringify(h.queryPipeline(a as never), null, 2) }],
+    }),
+  );
 
-  server.tool('find_jobs', 'Crawl the ATS watchlist, score, and persist.',
+  server.tool(
+    'find_jobs',
+    'Crawl the ATS watchlist, score, and persist.',
     { limit: z.number().optional(), minScore: z.number().optional() },
-    async (a) => ({ content: [{ type: 'text', text: JSON.stringify(await h.findJobs(a), null, 2) }] }));
+    async (a) => ({
+      content: [{ type: 'text', text: JSON.stringify(await h.findJobs(a), null, 2) }],
+    }),
+  );
 
-  server.tool('add_jobs', 'Ingest specific posting URLs into the pipeline.',
+  server.tool(
+    'add_jobs',
+    'Ingest specific posting URLs into the pipeline.',
     { urls: z.array(z.string()) },
-    async (a) => ({ content: [{ type: 'text', text: JSON.stringify(await h.addJobs(a), null, 2) }] }));
+    async (a) => ({
+      content: [{ type: 'text', text: JSON.stringify(await h.addJobs(a), null, 2) }],
+    }),
+  );
 
-  server.tool('tailor', 'Generate tailored docs; returns gap questions to optionally ask the user.',
+  server.tool(
+    'tailor',
+    'Generate tailored docs; returns gap questions to optionally ask the user.',
     { jobId: z.number().optional(), url: z.string().optional(), text: z.string().optional() },
-    async (a) => ({ content: [{ type: 'text', text: JSON.stringify(await h.tailor(a), null, 2) }] }));
+    async (a) => ({
+      content: [{ type: 'text', text: JSON.stringify(await h.tailor(a), null, 2) }],
+    }),
+  );
 
   await server.connect(new StdioServerTransport());
 }
@@ -225,11 +328,17 @@ export async function startMcpServer(): Promise<void> {
 
 ```ts
 import { startMcpServer } from './mcp/server.js';
-program.command('mcp').description('Start the job-scout MCP server on stdio.').action(async () => { await startMcpServer(); });
+program
+  .command('mcp')
+  .description('Start the job-scout MCP server on stdio.')
+  .action(async () => {
+    await startMcpServer();
+  });
 ```
 
 Run: `npm test && npm run lint && npm run build`
 Expected: green / clean / ok.
+
 ```bash
 git add package.json src/mcp src/cli.ts test/mcp
 git commit -m "feat(mcp): publish stdio server (find/add/query/tailor) over the shared engine"
@@ -240,6 +349,7 @@ git commit -m "feat(mcp): publish stdio server (find/add/query/tailor) over the 
 ## Task 18: README + demo
 
 **Files:**
+
 - Create: `LICENSE` (MIT), `docs/DEMO.md`
 - Rewrite: `README.md` (Spec §12 — all seven sections)
 
@@ -247,7 +357,7 @@ git commit -m "feat(mcp): publish stdio server (find/add/query/tailor) over the 
 
 - [ ] **Step 2: Write `docs/DEMO.md`** — a copy-paste transcript of a real session:
 
-```markdown
+````markdown
 # Demo
 
 ```text
@@ -270,7 +380,9 @@ This role leans heavily on event-driven systems; your profile mentions it once.
 Update your profile? You described EventBridge experience… (y/N) y
 Tailored docs written to output/acme-senior-full-stack-engineer
 ```
-```
+````
+
+````
 
 > Replace with a real captured run before publishing (no personal data beyond what you choose to show).
 
@@ -336,7 +448,7 @@ committed in `docs/` so the process is auditable:
 
 The commit history, specs, and plans together tell the story of how the tool was designed and built
 with AI — not just what it does.
-```
+````
 
 - [ ] **Step 4: Commit**
 
@@ -350,12 +462,14 @@ git commit -m "docs: first-class README, demo transcript, MIT license"
 ## Task 19: CI + final polish
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 - Verify: `package.json` metadata, `schema.sql` copy in build, full green
 
 - [ ] **Step 1: Add CI**
 
 `.github/workflows/ci.yml`:
+
 ```yaml
 name: ci
 on: [push, pull_request]
@@ -381,6 +495,7 @@ Confirm `package.json` has `description`, `license: "MIT"`, `repository`, `keywo
 - [ ] **Step 3: Full green gate**
 
 Run:
+
 ```bash
 npm ci
 npm run lint
@@ -388,6 +503,7 @@ npm test
 npm run build
 node dist/cli.js --help
 ```
+
 Expected: all clean; help lists `profile`, `find`, `add`, `pipeline`, `status`, `tailor`, `mcp`.
 
 - [ ] **Step 4: Commit**
@@ -411,6 +527,7 @@ git commit -m "ci: lint+test+build on push/PR; finalize package metadata"
 ---
 
 ## Optional follow-ups (explicitly out of scope — do NOT build now)
+
 - `score_job` single-posting MCP tool (thin wrapper over a one-item scorer batch).
 - LLM field-extraction in `add` (company/location/title from posting text).
 - Text/CSV batch inputs for `add` (the ingest core already supports it via a new `NormalizedJob[]` builder).
