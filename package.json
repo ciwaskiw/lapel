@@ -20,13 +20,16 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.159",
+    "@anthropic-ai/sdk": "^0.100.1",
     "better-sqlite3": "^11.3.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "html-to-text": "^9.0.5",
     "unpdf": "^0.12.1",
     "yaml": "^2.5.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
