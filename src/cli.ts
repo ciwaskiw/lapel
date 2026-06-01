@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { loadConfig } from './config.js';
 import { openDb, migrate } from './db/index.js';
@@ -10,6 +11,7 @@ import type { JobStatus } from './db/index.js';
 import { createClient } from './agent/client.js';
 import { makeScorer } from './scoring/score.js';
 import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
+import { runAdd } from './commands/add.js';
 
 const program = new Command();
 program
@@ -67,6 +69,26 @@ const profileCmd = program.command('profile').description('Build and maintain yo
 profileCmd.command('build').description('Interview + synthesize from PDFs in ./profile/.').action(async () => { await runProfileBuild(loadConfig()); });
 profileCmd.command('update').description('Incrementally edit the profile.').option('--note <text>', 'freeform change to integrate').action(async (o) => { await runProfileUpdate(loadConfig(), o.note); });
 profileCmd.command('show').description('Print profile.md.').action(() => { runProfileShow(loadConfig()); });
+
+program
+  .command('add')
+  .description('Ingest specific posting URLs into the pipeline.')
+  .argument('[urls...]', 'posting URLs')
+  .option('--urls <file>', 'file with one URL per line')
+  .option('--no-score', 'skip LLM scoring')
+  .option('--keep-dropped', 'print prefilter-dropped jobs')
+  .action(async (urlArgs: string[], opts) => {
+    const cfg = loadConfig();
+    const profile = loadProfile(cfg);
+    if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    const fromFile = opts.urls ? readFileSync(opts.urls, 'utf8').split('\n').map((s) => s.trim()).filter(Boolean) : [];
+    const urls = [...urlArgs, ...fromFile];
+    if (urls.length === 0) throw new Error('Provide URLs as arguments or via --urls <file>.');
+    const score = opts.score === false ? null : makeScorer({ client: createClient(cfg), model: cfg.models.worker, batchSize: cfg.scoringBatchSize });
+    await runAdd({ db, profile, urls, score, keepDropped: opts.keepDropped });
+  });
 
 program.parseAsync(process.argv).catch((err) => {
   const message = err instanceof Error ? err.message : String(err);
