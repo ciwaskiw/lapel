@@ -12,6 +12,7 @@ import { createClient } from './agent/client.js';
 import { makeScorer } from './scoring/score.js';
 import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
 import { runAdd } from './commands/add.js';
+import { runTailor } from './commands/tailor.js';
 
 const program = new Command();
 program
@@ -36,8 +37,20 @@ program
     const score =
       opts.score === false
         ? null
-        : makeScorer({ client: createClient(cfg), model: cfg.models.worker, batchSize: cfg.scoringBatchSize });
-    await runFind({ db, profile, watchlist, score, keepDropped: opts.keepDropped, limit: opts.limit, minScore: opts.minScore });
+        : makeScorer({
+            client: createClient(cfg),
+            model: cfg.models.worker,
+            batchSize: cfg.scoringBatchSize,
+          });
+    await runFind({
+      db,
+      profile,
+      watchlist,
+      score,
+      keepDropped: opts.keepDropped,
+      limit: opts.limit,
+      minScore: opts.minScore,
+    });
   });
 
 program
@@ -49,7 +62,9 @@ program
     const cfg = loadConfig();
     const db = openDb(cfg.dbPath);
     migrate(db);
-    console.log(renderPipeline(db, { status: opts.status as JobStatus | undefined, minScore: opts.minScore }));
+    console.log(
+      renderPipeline(db, { status: opts.status as JobStatus | undefined, minScore: opts.minScore }),
+    );
   });
 
 program
@@ -65,10 +80,28 @@ program
     console.log(`Job ${jobId} → ${state}`);
   });
 
-const profileCmd = program.command('profile').description('Build and maintain your living profile.');
-profileCmd.command('build').description('Interview + synthesize from PDFs in ./profile/.').action(async () => { await runProfileBuild(loadConfig()); });
-profileCmd.command('update').description('Incrementally edit the profile.').option('--note <text>', 'freeform change to integrate').action(async (o) => { await runProfileUpdate(loadConfig(), o.note); });
-profileCmd.command('show').description('Print profile.md.').action(() => { runProfileShow(loadConfig()); });
+const profileCmd = program
+  .command('profile')
+  .description('Build and maintain your living profile.');
+profileCmd
+  .command('build')
+  .description('Interview + synthesize from PDFs in ./profile/.')
+  .action(async () => {
+    await runProfileBuild(loadConfig());
+  });
+profileCmd
+  .command('update')
+  .description('Incrementally edit the profile.')
+  .option('--note <text>', 'freeform change to integrate')
+  .action(async (o) => {
+    await runProfileUpdate(loadConfig(), o.note);
+  });
+profileCmd
+  .command('show')
+  .description('Print profile.md.')
+  .action(() => {
+    runProfileShow(loadConfig());
+  });
 
 program
   .command('add')
@@ -83,11 +116,41 @@ program
     if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
     const db = openDb(cfg.dbPath);
     migrate(db);
-    const fromFile = opts.urls ? readFileSync(opts.urls, 'utf8').split('\n').map((s) => s.trim()).filter(Boolean) : [];
+    const fromFile = opts.urls
+      ? readFileSync(opts.urls, 'utf8')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
     const urls = [...urlArgs, ...fromFile];
     if (urls.length === 0) throw new Error('Provide URLs as arguments or via --urls <file>.');
-    const score = opts.score === false ? null : makeScorer({ client: createClient(cfg), model: cfg.models.worker, batchSize: cfg.scoringBatchSize });
+    const score =
+      opts.score === false
+        ? null
+        : makeScorer({
+            client: createClient(cfg),
+            model: cfg.models.worker,
+            batchSize: cfg.scoringBatchSize,
+          });
     await runAdd({ db, profile, urls, score, keepDropped: opts.keepDropped });
+  });
+
+program
+  .command('tailor')
+  .description('Generate tailored resume summary + cover letter for a posting.')
+  .argument('[job-id]', 'a job id from the pipeline', (v) => parseInt(v, 10))
+  .option('--url <url>', 'a posting URL')
+  .option('--text <file>', 'a file containing the posting text')
+  .option('--opus', 'use the synthesis (Opus) tier')
+  .option('--no-interview', 'skip the gap-interview')
+  .action(async (jobId: number | undefined, opts) => {
+    await runTailor(loadConfig(), {
+      jobId: Number.isNaN(jobId) ? undefined : jobId,
+      url: opts.url,
+      textFile: opts.text,
+      opus: opts.opus,
+      interview: opts.interview,
+    });
   });
 
 program.parseAsync(process.argv).catch((err) => {
