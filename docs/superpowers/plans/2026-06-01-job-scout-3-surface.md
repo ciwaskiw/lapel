@@ -319,11 +319,23 @@ node dist/cli.js tailor <job-id>
 Only public ATS APIs; no scraping of auth-walled or ToS-hostile sources; never auto-applies.
 
 ## How this was built
-This project was designed and built with an explicit agentic workflow: a brainstormed and committed
-**spec** (`docs/superpowers/specs/`), a sequenced **implementation plan** (`docs/superpowers/plans/`),
-then **tiered execution** — Opus for design/planning, Sonnet for implementation to control cost. The
-app mirrors that tiering at runtime: a fast worker model for scoring/most tailoring, an opt-in
-synthesis tier for profile building and final polish. See the specs and plans in `docs/`.
+This project is also a demonstration of a disciplined agentic development workflow. Every stage is
+committed in `docs/` so the process is auditable:
+
+1. **Brainstorm → spec.** Requirements and architecture were explored interactively, then written to
+   a committed design spec (`docs/superpowers/specs/`) — the single source of truth.
+2. **Spec → plans.** The spec was decomposed into three sequenced, test-driven implementation plans
+   (`docs/superpowers/plans/`): foundation, intelligence, surface.
+3. **Tiered, subagent-driven execution.** Planning and review ran on **Opus**; each plan task was
+   implemented by a fresh **Sonnet** subagent and reviewed against the plan before the next task —
+   keeping context tight, cost controlled, and every change scoped and verified (TDD, frequent
+   commits).
+4. **Runtime tiering mirrors the build.** The app uses a fast worker model (Sonnet) for scoring and
+   most tailoring, and an opt-in synthesis tier (Opus) for profile building and final cover-letter
+   polish.
+
+The commit history, specs, and plans together tell the story of how the tool was designed and built
+with AI — not just what it does.
 ```
 
 - [ ] **Step 4: Commit**
