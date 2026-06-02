@@ -72,10 +72,27 @@ Add a posting you found elsewhere:
 node dist/cli.js add https://boards.greenhouse.io/acme/jobs/123
 ```
 
+### Triage a messy leads list
+
+Have a pile of notes — company names, career-page links, individual postings? Hand it to lapel:
+
+```bash
+node dist/cli.js leads my-leads.md --dry-run   # preview; drop --dry-run to write
+```
+
+It uses the LLM to extract companies + URLs, then **verifies against the live ATS APIs** —
+resolving each company to a Greenhouse/Lever/Ashby board (it'll even find a renamed company by
+probing, e.g. "Rocket Money" → `greenhouse/truebill`). Resolvable companies are merged into
+`companies.yaml`; loose posting URLs go to `leads-urls.txt` (then `add --urls leads-urls.txt`);
+career landing pages it can't resolve (e.g. a custom/Workday site) are flagged for you to add by
+hand. Companies whose board slug differs from their name and can't be probed will also surface as
+unresolved.
+
 ### Commands
 
 | Command                             | What it does                                                                                         |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `leads <file>`                      | Triage a messy leads list → `companies.yaml` + `leads-urls.txt` (LLM extract + live ATS verify)      |
 | `profile build` / `update` / `show` | Build/refine the living profile from your PDFs + an interview                                        |
 | `find`                              | Crawl the watchlist, score, dedup, persist, rank (`--no-score` for a key-free prefilter run)         |
 | `add <url…>`                        | Ingest specific posting URLs into the same pipeline                                                  |
