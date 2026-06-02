@@ -14,15 +14,15 @@
 
 ## File Structure (Plan 5)
 
-| File | Responsibility |
-|------|----------------|
-| `src/leads/extract.ts` | LLM extraction: messy text → `LeadInput[]` (zod), via `structuredCall` |
-| `src/leads/resolve.ts` | **pure/deterministic** — `parseAtsUrl`, `slugCandidates`, `probeAts`, `resolveLead` |
-| `src/leads/triage.ts` | orchestrates extract + resolve → `{ watchlist, addUrls, unresolved }` (injectable deps) |
-| `src/sources/index.ts` | **modify** — add `mergeWatchlist(file, entries)` (read+dedup+write companies.yaml) |
-| `src/commands/leads.ts` | `runLeads(cfg, file, opts)` — wires real backend + real probes + file writes |
-| `src/cli.ts` | **modify** — register `leads` |
-| `test/leads/resolve.test.ts`, `test/leads/triage.test.ts` | unit tests (mock fetch + extractor) |
+| File                                                      | Responsibility                                                                          |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/leads/extract.ts`                                    | LLM extraction: messy text → `LeadInput[]` (zod), via `structuredCall`                  |
+| `src/leads/resolve.ts`                                    | **pure/deterministic** — `parseAtsUrl`, `slugCandidates`, `probeAts`, `resolveLead`     |
+| `src/leads/triage.ts`                                     | orchestrates extract + resolve → `{ watchlist, addUrls, unresolved }` (injectable deps) |
+| `src/sources/index.ts`                                    | **modify** — add `mergeWatchlist(file, entries)` (read+dedup+write companies.yaml)      |
+| `src/commands/leads.ts`                                   | `runLeads(cfg, file, opts)` — wires real backend + real probes + file writes            |
+| `src/cli.ts`                                              | **modify** — register `leads`                                                           |
+| `test/leads/resolve.test.ts`, `test/leads/triage.test.ts` | unit tests (mock fetch + extractor)                                                     |
 
 > `src/leads/resolve.ts` is core-adjacent but lives outside the eslint "core" globs, so it may import `sources/http`. It must NOT import `src/agent`. Only `extract.ts`/`triage.ts`/`commands/leads.ts` touch the LLM.
 
@@ -33,18 +33,31 @@
 **Files:** Create `src/leads/resolve.ts`, `test/leads/resolve.test.ts`.
 
 - [ ] **Step 1 — write the failing test** `test/leads/resolve.test.ts`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { parseAtsUrl, slugCandidates, probeAts, resolveLead } from '../../src/leads/resolve.js';
 
 describe('parseAtsUrl', () => {
   it('extracts greenhouse slug from board urls', () => {
-    expect(parseAtsUrl('https://job-boards.greenhouse.io/customerio/jobs/7776591')).toEqual({ source: 'greenhouse', slug: 'customerio' });
-    expect(parseAtsUrl('https://boards.greenhouse.io/figma/jobs/5759501004?gh_jid=1')).toEqual({ source: 'greenhouse', slug: 'figma' });
+    expect(parseAtsUrl('https://job-boards.greenhouse.io/customerio/jobs/7776591')).toEqual({
+      source: 'greenhouse',
+      slug: 'customerio',
+    });
+    expect(parseAtsUrl('https://boards.greenhouse.io/figma/jobs/5759501004?gh_jid=1')).toEqual({
+      source: 'greenhouse',
+      slug: 'figma',
+    });
   });
   it('extracts lever and ashby slugs', () => {
-    expect(parseAtsUrl('https://jobs.lever.co/netflix/abc-123')).toEqual({ source: 'lever', slug: 'netflix' });
-    expect(parseAtsUrl('https://jobs.ashbyhq.com/mapbox/uuid-here')).toEqual({ source: 'ashby', slug: 'mapbox' });
+    expect(parseAtsUrl('https://jobs.lever.co/netflix/abc-123')).toEqual({
+      source: 'lever',
+      slug: 'netflix',
+    });
+    expect(parseAtsUrl('https://jobs.ashbyhq.com/mapbox/uuid-here')).toEqual({
+      source: 'ashby',
+      slug: 'mapbox',
+    });
   });
   it('returns null for non-ATS urls', () => {
     expect(parseAtsUrl('https://zillow.wd5.myworkdayjobs.com/x/job/y')).toBeNull();
@@ -63,8 +76,12 @@ describe('slugCandidates', () => {
 
 describe('probeAts', () => {
   it('returns true when a board has jobs', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ jobs: [{ id: 1 }] }) } as Response);
-    expect(await probeAts('greenhouse', 'customerio', fetchImpl as unknown as typeof fetch)).toBe(true);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ jobs: [{ id: 1 }] }) } as Response);
+    expect(await probeAts('greenhouse', 'customerio', fetchImpl as unknown as typeof fetch)).toBe(
+      true,
+    );
   });
   it('returns false on 404 / empty', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 } as Response);
@@ -73,31 +90,52 @@ describe('probeAts', () => {
 });
 
 describe('resolveLead', () => {
-  const prober = (hit: Record<string, true>) =>
-    async (source: string, slug: string) => Boolean(hit[`${source}:${slug}`]);
+  const prober = (hit: Record<string, true>) => async (source: string, slug: string) =>
+    Boolean(hit[`${source}:${slug}`]);
 
   it('uses a known ATS url → watchlist (drops the redundant url)', async () => {
-    const r = await resolveLead({ company: 'Customer.io', urls: ['https://job-boards.greenhouse.io/customerio/jobs/1'], notes: '' }, { probe: prober({}) });
+    const r = await resolveLead(
+      {
+        company: 'Customer.io',
+        urls: ['https://job-boards.greenhouse.io/customerio/jobs/1'],
+        notes: '',
+      },
+      { probe: prober({}) },
+    );
     expect(r.watchlist).toEqual({ source: 'greenhouse', slug: 'customerio', name: 'Customer.io' });
     expect(r.addUrls).toEqual([]);
   });
   it('probes by name when no ATS url is given → watchlist', async () => {
-    const r = await resolveLead({ company: 'Grafana Labs', urls: [], notes: '' }, { probe: prober({ 'greenhouse:grafanalabs': true }) });
-    expect(r.watchlist).toEqual({ source: 'greenhouse', slug: 'grafanalabs', name: 'Grafana Labs' });
+    const r = await resolveLead(
+      { company: 'Grafana Labs', urls: [], notes: '' },
+      { probe: prober({ 'greenhouse:grafanalabs': true }) },
+    );
+    expect(r.watchlist).toEqual({
+      source: 'greenhouse',
+      slug: 'grafanalabs',
+      name: 'Grafana Labs',
+    });
   });
   it('keeps non-ATS posting urls as add-urls', async () => {
-    const r = await resolveLead({ company: 'SeatGeek', urls: ['https://seatgeek.com/jobs/7073875'], notes: '' }, { probe: prober({}) });
+    const r = await resolveLead(
+      { company: 'SeatGeek', urls: ['https://seatgeek.com/jobs/7073875'], notes: '' },
+      { probe: prober({}) },
+    );
     expect(r.watchlist).toBeUndefined();
     expect(r.addUrls).toEqual(['https://seatgeek.com/jobs/7073875']);
   });
   it('flags a company with no urls and no probe hit as unresolved', async () => {
-    const r = await resolveLead({ company: 'Geico', urls: [], notes: 'careers page' }, { probe: prober({}) });
+    const r = await resolveLead(
+      { company: 'Geico', urls: [], notes: 'careers page' },
+      { probe: prober({}) },
+    );
     expect(r.unresolved).toMatch(/Geico/);
   });
 });
 ```
 
 - [ ] **Step 2 — implement `src/leads/resolve.ts`:**
+
 ```ts
 import { fetchJson } from '../sources/http.js';
 import type { WatchlistEntry } from '../sources/types.js';
@@ -143,8 +181,14 @@ export function parseAtsUrl(url: string): { source: AtsSource; slug: string } | 
 }
 
 export function slugCandidates(name: string): string[] {
-  const base = name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
-  const firstWord = name.toLowerCase().replace(/[^a-z0-9 ]+/g, '').split(/\s+/)[0];
+  const base = name
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '');
+  const firstWord = name
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, '')
+    .split(/\s+/)[0];
   return [...new Set([base, firstWord].filter(Boolean))];
 }
 
@@ -154,7 +198,11 @@ const PROBE_URL: Record<AtsSource, (slug: string) => string> = {
   ashby: (s) => `https://api.ashbyhq.com/posting-api/job-board/${s}`,
 };
 
-export async function probeAts(source: AtsSource, slug: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+export async function probeAts(
+  source: AtsSource,
+  slug: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
   try {
     const data = await fetchJson<unknown>(PROBE_URL[source](slug), { retries: 1, fetchImpl });
     const jobs = source === 'lever' ? (data as unknown[]) : (data as { jobs?: unknown[] }).jobs;
@@ -179,12 +227,16 @@ export async function resolveLead(lead: LeadInput, deps: ResolveDeps = {}): Prom
   // 2. No ATS url — probe by name-derived candidates across the three boards.
   for (const slug of slugCandidates(lead.company)) {
     for (const source of ['greenhouse', 'lever', 'ashby'] as AtsSource[]) {
-      if (await probe(source, slug)) return { watchlist: { source, slug, name: lead.company }, addUrls: [] };
+      if (await probe(source, slug))
+        return { watchlist: { source, slug, name: lead.company }, addUrls: [] };
     }
   }
   // 3. Not resolvable to a board. Non-ATS posting urls become direct adds.
   if (lead.urls.length > 0) return { addUrls: lead.urls };
-  return { addUrls: [], unresolved: `${lead.company} — no ATS board found and no posting URL (careers landing page?)` };
+  return {
+    addUrls: [],
+    unresolved: `${lead.company} — no ATS board found and no posting URL (careers landing page?)`,
+  };
 }
 ```
 
@@ -197,6 +249,7 @@ export async function resolveLead(lead: LeadInput, deps: ResolveDeps = {}): Prom
 **Files:** Create `src/leads/extract.ts`, `src/leads/triage.ts`, `test/leads/triage.test.ts`.
 
 - [ ] **Step 1 — `src/leads/extract.ts`** (LLM via the existing seam):
+
 ```ts
 import { z } from 'zod';
 import type { LlmBackend } from '../agent/backend.js';
@@ -213,9 +266,14 @@ entry per distinct COMPANY (merge multiple roles/links for the same company into
 useful free-text (referrals, location/commute notes, "interested") into \`notes\`. Do not invent URLs
 or companies.`;
 
-export function extractLeads(backend: LlmBackend, model: string, text: string): Promise<{ leads: LeadInput[] }> {
+export function extractLeads(
+  backend: LlmBackend,
+  model: string,
+  text: string,
+): Promise<{ leads: LeadInput[] }> {
   return structuredCall({
-    backend, model,
+    backend,
+    model,
     system: EXTRACT_SYSTEM,
     user: `LEADS FILE:\n${text.slice(0, 20000)}`,
     toolName: 'emit_leads',
@@ -226,6 +284,7 @@ export function extractLeads(backend: LlmBackend, model: string, text: string): 
 ```
 
 - [ ] **Step 2 — `src/leads/triage.ts`:**
+
 ```ts
 import type { WatchlistEntry } from '../sources/types.js';
 import { resolveLead, type LeadInput, type ResolveDeps } from './resolve.js';
@@ -248,7 +307,10 @@ export async function triageLeads(text: string, deps: TriageDeps): Promise<Triag
     const r = await resolveLead(lead, { probe: deps.probe });
     if (r.watchlist) {
       const key = `${r.watchlist.source}:${r.watchlist.slug}`;
-      if (!seen.has(key)) { seen.add(key); out.watchlist.push(r.watchlist); }
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.watchlist.push(r.watchlist);
+      }
     }
     for (const u of r.addUrls) if (!out.addUrls.includes(u)) out.addUrls.push(u);
     if (r.unresolved) out.unresolved.push(r.unresolved);
@@ -258,6 +320,7 @@ export async function triageLeads(text: string, deps: TriageDeps): Promise<Triag
 ```
 
 - [ ] **Step 3 — `test/leads/triage.test.ts`** (inject `extract` + `probe`, no LLM/network):
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { triageLeads } from '../../src/leads/triage.js';
@@ -266,11 +329,19 @@ describe('triageLeads', () => {
   it('splits leads into watchlist, add-urls, and unresolved (deduped)', async () => {
     const extract = vi.fn().mockResolvedValue({
       leads: [
-        { company: 'Customer.io', urls: ['https://job-boards.greenhouse.io/customerio/jobs/1'], notes: '' },
+        {
+          company: 'Customer.io',
+          urls: ['https://job-boards.greenhouse.io/customerio/jobs/1'],
+          notes: '',
+        },
         { company: 'SeatGeek', urls: ['https://seatgeek.com/jobs/7073875'], notes: '' },
         { company: 'Grafana', urls: [], notes: '' },
         { company: 'Geico', urls: [], notes: 'careers page' },
-        { company: 'Customer.io', urls: ['https://job-boards.greenhouse.io/customerio/jobs/2'], notes: '' },
+        {
+          company: 'Customer.io',
+          urls: ['https://job-boards.greenhouse.io/customerio/jobs/2'],
+          notes: '',
+        },
       ],
     });
     const probe = async (s: string, slug: string) => s === 'greenhouse' && slug === 'grafana';
@@ -294,6 +365,7 @@ describe('triageLeads', () => {
 **Files:** Modify `src/sources/index.ts`, `src/cli.ts`; create `src/commands/leads.ts`. (Optional: a small test for `mergeWatchlist` against a temp file.)
 
 - [ ] **Step 1 — `src/sources/index.ts`: add `mergeWatchlist`:**
+
 ```ts
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { parse, stringify } from 'yaml';
@@ -305,7 +377,11 @@ export function mergeWatchlist(file: string, entries: WatchlistEntry[]): { added
   let added = 0;
   for (const e of entries) {
     const key = `${e.source}:${e.slug}`;
-    if (!seen.has(key)) { seen.add(key); existing.push(e); added++; }
+    if (!seen.has(key)) {
+      seen.add(key);
+      existing.push(e);
+      added++;
+    }
   }
   writeFileSync(file, stringify({ companies: existing }));
   return { added };
@@ -313,6 +389,7 @@ export function mergeWatchlist(file: string, entries: WatchlistEntry[]): { added
 ```
 
 - [ ] **Step 2 — `src/commands/leads.ts`:**
+
 ```ts
 import { readFileSync, appendFileSync, existsSync, readFileSync as rf } from 'node:fs';
 import type { Config } from '../config.js';
@@ -321,10 +398,16 @@ import { extractLeads } from '../leads/extract.js';
 import { triageLeads } from '../leads/triage.js';
 import { mergeWatchlist } from '../sources/index.js';
 
-export async function runLeads(cfg: Config, file: string, opts: { dryRun?: boolean }): Promise<void> {
+export async function runLeads(
+  cfg: Config,
+  file: string,
+  opts: { dryRun?: boolean },
+): Promise<void> {
   const text = readFileSync(file, 'utf8');
   const backend = createBackend(cfg);
-  const result = await triageLeads(text, { extract: (t) => extractLeads(backend, cfg.models.worker, t) });
+  const result = await triageLeads(text, {
+    extract: (t) => extractLeads(backend, cfg.models.worker, t),
+  });
 
   console.log(`\nWatchlist (${result.watchlist.length}) → ${cfg.companiesFile}`);
   for (const e of result.watchlist) console.log(`  ${e.source}/${e.slug}  (${e.name})`);
@@ -334,18 +417,29 @@ export async function runLeads(cfg: Config, file: string, opts: { dryRun?: boole
     console.log(`\nUnresolved (needs a posting URL or manual ATS lookup):`);
     for (const u of result.unresolved) console.log(`  - ${u}`);
   }
-  if (opts.dryRun) { console.log('\n(--dry-run: nothing written)'); return; }
+  if (opts.dryRun) {
+    console.log('\n(--dry-run: nothing written)');
+    return;
+  }
 
   const { added } = mergeWatchlist(cfg.companiesFile, result.watchlist);
   const addsFile = 'leads-urls.txt';
-  const have = existsSync(addsFile) ? new Set(rf(addsFile, 'utf8').split('\n').map((s) => s.trim())) : new Set<string>();
+  const have = existsSync(addsFile)
+    ? new Set(
+        rf(addsFile, 'utf8')
+          .split('\n')
+          .map((s) => s.trim()),
+      )
+    : new Set<string>();
   const fresh = result.addUrls.filter((u) => !have.has(u));
-  if (fresh.length) appendFileSync(addsFile, (existsSync(addsFile) ? '' : '') + fresh.join('\n') + '\n');
+  if (fresh.length)
+    appendFileSync(addsFile, (existsSync(addsFile) ? '' : '') + fresh.join('\n') + '\n');
   console.log(`\nWrote: +${added} watchlist companies, +${fresh.length} add-urls (${addsFile}).`);
 }
 ```
 
 - [ ] **Step 3 — register in `src/cli.ts`:**
+
 ```ts
 import { runLeads } from './commands/leads.js';
 
@@ -370,6 +464,7 @@ program
 ---
 
 ## Self-Review (before handoff)
+
 - [ ] **Boundary:** `resolve.ts` imports only `sources/http` + types (no `agent`); only `extract/triage/commands` touch the LLM.
 - [ ] **Keyless tests:** all new tests inject `extract`/`probe` — no network, no API key.
 - [ ] **Honest limits:** renamed companies whose slug ≠ name (e.g. Rocket Money→`truebill`) won't be found by name-probing — they surface in `unresolved`; the user adds them by hand or via a known posting URL. README should say so.
