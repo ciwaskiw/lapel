@@ -1,5 +1,7 @@
 # job-scout — Plan 3: Surface (MCP server, README, polish) Implementation Plan
 
+> **Renamed post-implementation to `lapel`.** This plan keeps the original working name "job-scout" as a historical record; the shipped code uses `lapel`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the portfolio surface — a published stdio MCP server exposing the same engine to Claude Desktop/Code, a first-class README (including the "how this was built" agentic-process section), and CI/polish so the repo is clean and green.

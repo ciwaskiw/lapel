@@ -17,7 +17,7 @@ import { startMcpServer } from './mcp/server.js';
 
 const program = new Command();
 program
-  .name('job-scout')
+  .name('lapel')
   .description('Find and tailor job applications from your living profile.')
   .version('0.1.0');
 
@@ -31,7 +31,7 @@ program
   .action(async (opts) => {
     const cfg = loadConfig();
     const profile = loadProfile(cfg);
-    if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
+    if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
     const db = openDb(cfg.dbPath);
     migrate(db);
     const watchlist = loadWatchlist(cfg.companiesFile);
@@ -114,7 +114,7 @@ program
   .action(async (urlArgs: string[], opts) => {
     const cfg = loadConfig();
     const profile = loadProfile(cfg);
-    if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
+    if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
     const db = openDb(cfg.dbPath);
     migrate(db);
     const fromFile = opts.urls
@@ -156,13 +156,13 @@ program
 
 program
   .command('mcp')
-  .description('Start the job-scout MCP server on stdio.')
+  .description('Start the lapel MCP server on stdio.')
   .action(async () => {
     await startMcpServer();
   });
 
 program.parseAsync(process.argv).catch((err) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(process.env.JOB_SCOUT_DEBUG === '1' ? err : `Error: ${message}`);
+  console.error(process.env.LAPEL_DEBUG === '1' ? err : `Error: ${message}`);
   process.exit(1);
 });

@@ -6,7 +6,7 @@ describe('loadConfig', () => {
   it('derives all paths from the root dir', () => {
     const c = loadConfig('/tmp/js', {});
     expect(c.profileJson).toBe(path.join('/tmp/js', 'profile', 'profile.json'));
-    expect(c.dbPath).toBe(path.join('/tmp/js', 'job-scout.db'));
+    expect(c.dbPath).toBe(path.join('/tmp/js', 'lapel.db'));
     expect(c.companiesFile).toBe(path.join('/tmp/js', 'companies.yaml'));
     expect(c.outputDir).toBe(path.join('/tmp/js', 'output'));
   });
@@ -15,9 +15,9 @@ describe('loadConfig', () => {
     expect(loadConfig('/x', {}).models.worker).toBe('claude-sonnet-4-6');
     expect(loadConfig('/x', {}).models.synth).toBe('claude-opus-4-8');
     const c = loadConfig('/x', {
-      JOB_SCOUT_MODEL_WORKER: 'm1',
-      JOB_SCOUT_MODEL_SYNTH: 'm2',
-      JOB_SCOUT_DEBUG: '1',
+      LAPEL_MODEL_WORKER: 'm1',
+      LAPEL_MODEL_SYNTH: 'm2',
+      LAPEL_DEBUG: '1',
     });
     expect(c.models.worker).toBe('m1');
     expect(c.models.synth).toBe('m2');

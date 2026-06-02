@@ -1,5 +1,7 @@
 # job-scout — Plan 2: Intelligence Implementation Plan
 
+> **Renamed post-implementation to `lapel`.** This plan keeps the original working name "job-scout" as a historical record; the shipped code uses `lapel`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the LLM layer on top of Plan 1's deterministic core — structured-output scoring wired into `find`, the interactive `profile build`/`update`/`show`, the `add` URL-ingest command, `tailor` (resume summary + cover letter + fit notes), the `update_profile` feedback loop, and the proactive gap-interview during `tailor`.

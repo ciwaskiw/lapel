@@ -4,6 +4,10 @@
 **Status:** Approved for implementation planning
 **Author:** Design via Claude Opus 4.8 (brainstorming). Intended implementer: Claude Sonnet 4.6 (separate session).
 
+> **Renamed (post-implementation):** the project shipped as **`lapel`**. This spec and the plans
+> keep the original working name "job-scout" throughout as a historical record of how it was built.
+> In the shipped code, every `job-scout` → `lapel` (binary, package, env prefix `LAPEL_*`, `lapel.db`).
+
 > **Amendment (2026-06-01, during implementation):** The original design called this a "Claude Agent
 > SDK app" that _consumes_ the official `fetch` MCP. During build we found `@anthropic-ai/claude-agent-sdk`
 > was unused (all LLM calls go through the `@anthropic-ai/sdk` Messages API with tool use) and it forced

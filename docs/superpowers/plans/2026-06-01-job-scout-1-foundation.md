@@ -1,5 +1,7 @@
 # job-scout — Plan 1: Foundation Implementation Plan
 
+> **Renamed post-implementation to `lapel`.** This plan keeps the original working name "job-scout" as a historical record; the shipped code uses `lapel`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the deterministic core of job-scout — config, SQLite persistence, the living-profile schema/store/PDF extraction, ATS source adapters, the ingest/dedup/prefilter pipeline, and the `find --no-score`, `pipeline`, and `status` commands — all testable with **no Anthropic API key**.

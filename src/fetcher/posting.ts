@@ -13,7 +13,7 @@ export async function fetchPostingText(
   fetchImpl: typeof fetch = fetch,
 ): Promise<PostingText> {
   const res = await fetchImpl(url, {
-    headers: { 'user-agent': 'job-scout/0.1 (+https://github.com/)' },
+    headers: { 'user-agent': 'lapel/0.1 (+https://github.com/)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   const html = await res.text();

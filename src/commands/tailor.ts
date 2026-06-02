@@ -22,7 +22,7 @@ export interface TailorCliOpts {
 
 export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void> {
   const profile = loadProfile(cfg);
-  if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
+  if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
   const db = openDb(cfg.dbPath);
   migrate(db);
   const client = createClient(cfg);

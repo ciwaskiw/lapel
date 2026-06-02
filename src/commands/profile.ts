@@ -55,7 +55,7 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
 
 export async function runProfileUpdate(cfg: Config, note?: string): Promise<void> {
   const existing = loadProfile(cfg);
-  if (!existing) throw new Error('No profile yet. Run `job-scout profile build` first.');
+  if (!existing) throw new Error('No profile yet. Run `lapel profile build` first.');
   const client = createClient(cfg);
   const transcript = note
     ? `Q: Apply this update.\nA: ${note}`
@@ -79,6 +79,6 @@ export async function runProfileUpdate(cfg: Config, note?: string): Promise<void
 
 export function runProfileShow(cfg: Config): void {
   const p = loadProfile(cfg);
-  if (!p) throw new Error('No profile yet. Run `job-scout profile build` first.');
+  if (!p) throw new Error('No profile yet. Run `lapel profile build` first.');
   console.log(renderProfileMarkdown(p));
 }

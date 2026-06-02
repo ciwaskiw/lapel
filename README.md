@@ -1,8 +1,8 @@
-# job-scout
+# lapel
 
 > Find relevant jobs and tailor applications from a **living profile** you build once and refine as you go — a local, agentic CLI (plus an MCP server) that keeps you in the loop and never fabricates experience.
 
-`job-scout` automates the two grinds of a job search and accelerates the third:
+`lapel` automates the two grinds of a job search and accelerates the third:
 
 1. **Find** — pull open roles from public ATS APIs (Greenhouse, Lever, Ashby), score each for fit against your profile with an LLM, and track them in a local pipeline.
 2. **Tailor** — for a role you choose, generate a tailored résumé summary + cover letter grounded strictly in your real experience.
@@ -14,7 +14,7 @@ It's also a portfolio project: see [How this was built](#how-this-was-built).
 
 ## Why
 
-Job hunting splits into "find roles worth applying to" and "tailor each application," and both are tedious in different ways. `job-scout` makes finding a fast, deduplicated, _scored_ pipeline you own, and makes tailoring a grounded first draft you refine — while never auto-applying and never inventing experience on your behalf.
+Job hunting splits into "find roles worth applying to" and "tailor each application," and both are tedious in different ways. `lapel` makes finding a fast, deduplicated, _scored_ pipeline you own, and makes tailoring a grounded first draft you refine — while never auto-applying and never inventing experience on your behalf.
 
 ## How it works
 
@@ -49,7 +49,7 @@ Job hunting splits into "find roles worth applying to" and "tailor each applicat
 > Requires **Node 22** (the native `better-sqlite3` build needs it) and an Anthropic API key.
 
 ```bash
-git clone <your-fork> job-scout && cd job-scout
+git clone <your-fork> lapel && cd lapel
 npm install
 npm run build
 
@@ -89,14 +89,14 @@ It's a _living_ artifact: `profile build` is re-runnable, `profile update --note
 
 ## Use it from Claude Desktop / Code
 
-`job-scout` publishes an MCP server exposing the same engine (`query_pipeline`, `find_jobs`, `add_jobs`, `tailor`). Add it to your MCP client config:
+`lapel` publishes an MCP server exposing the same engine (`query_pipeline`, `find_jobs`, `add_jobs`, `tailor`). Add it to your MCP client config:
 
 ```json
 {
   "mcpServers": {
-    "job-scout": {
+    "lapel": {
       "command": "node",
-      "args": ["/absolute/path/to/job-scout/dist/cli.js", "mcp"],
+      "args": ["/absolute/path/to/lapel/dist/cli.js", "mcp"],
       "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
     }
   }

@@ -27,14 +27,14 @@ export function loadConfig(
     profileJson: path.join(profileDir, 'profile.json'),
     profileMd: path.join(profileDir, 'profile.md'),
     outputDir: path.join(rootDir, 'output'),
-    dbPath: path.join(rootDir, 'job-scout.db'),
+    dbPath: path.join(rootDir, 'lapel.db'),
     companiesFile: path.join(rootDir, 'companies.yaml'),
     anthropicApiKey: env.ANTHROPIC_API_KEY,
     models: {
-      worker: env.JOB_SCOUT_MODEL_WORKER ?? 'claude-sonnet-4-6',
-      synth: env.JOB_SCOUT_MODEL_SYNTH ?? 'claude-opus-4-8',
+      worker: env.LAPEL_MODEL_WORKER ?? 'claude-sonnet-4-6',
+      synth: env.LAPEL_MODEL_SYNTH ?? 'claude-opus-4-8',
     },
     scoringBatchSize: SCORING_BATCH_SIZE,
-    debug: env.JOB_SCOUT_DEBUG === '1',
+    debug: env.LAPEL_DEBUG === '1',
   };
 }

@@ -14,7 +14,7 @@ import { makeHandlers } from './handlers.js';
 export async function startMcpServer(): Promise<void> {
   const cfg = loadConfig();
   const profile = loadProfile(cfg);
-  if (!profile) throw new Error('No profile found. Run `job-scout profile build` first.');
+  if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
   const db = openDb(cfg.dbPath);
   migrate(db);
   const client = createClient(cfg);
@@ -48,7 +48,7 @@ export async function startMcpServer(): Promise<void> {
     },
   });
 
-  const server = new McpServer({ name: 'job-scout', version: '0.1.0' });
+  const server = new McpServer({ name: 'lapel', version: '0.1.0' });
 
   server.tool(
     'query_pipeline',
