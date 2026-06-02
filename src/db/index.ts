@@ -158,3 +158,21 @@ export function getApplication(db: Database.Database, jobId: number): Applicatio
     | ApplicationRow
     | undefined;
 }
+
+export function removeJobsByCompany(db: Database.Database, company: string): number {
+  const tx = db.transaction((c: string): number => {
+    db.prepare(
+      'DELETE FROM applications WHERE job_id IN (SELECT id FROM jobs WHERE company = ?)',
+    ).run(c);
+    return db.prepare('DELETE FROM jobs WHERE company = ?').run(c).changes;
+  });
+  return tx(company);
+}
+
+export function removeJobById(db: Database.Database, id: number): boolean {
+  const tx = db.transaction((jobId: number): boolean => {
+    db.prepare('DELETE FROM applications WHERE job_id = ?').run(jobId);
+    return db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId).changes > 0;
+  });
+  return tx(id);
+}

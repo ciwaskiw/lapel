@@ -9,6 +9,8 @@ import {
   setStatus,
   insertApplication,
   getApplication,
+  removeJobsByCompany,
+  removeJobById,
 } from '../../src/db/index.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
@@ -116,5 +118,25 @@ describe('db', () => {
     expect(() => migrate(db)).not.toThrow();
     const r = upsertJob(db, sampleJob());
     expect(getJobById(db, r.id)!.company).toBe('Acme');
+  });
+
+  it("removeJobsByCompany deletes a company's jobs (and their applications), leaving others", () => {
+    const a = upsertJob(db, sampleJob({ externalId: 'a', company: 'Acme' }));
+    upsertJob(db, sampleJob({ externalId: 'b', company: 'Acme' }));
+    upsertJob(db, sampleJob({ externalId: 'c', company: 'Globex' }));
+    insertApplication(db, { jobId: a.id, resumePath: 'r', coverPath: 'c', fitNotesPath: 'f' });
+    const removed = removeJobsByCompany(db, 'Acme');
+    expect(removed).toBe(2);
+    expect(getJobs(db, {}).map((j) => j.company)).toEqual(['Globex']);
+    expect(getApplication(db, a.id)).toBeUndefined();
+  });
+
+  it('removeJobById deletes one job (and its application); false for unknown id', () => {
+    const a = upsertJob(db, sampleJob({ externalId: 'a' }));
+    insertApplication(db, { jobId: a.id, resumePath: 'r', coverPath: 'c', fitNotesPath: 'f' });
+    expect(removeJobById(db, a.id)).toBe(true);
+    expect(getJobById(db, a.id)).toBeUndefined();
+    expect(getApplication(db, a.id)).toBeUndefined();
+    expect(removeJobById(db, 9999)).toBe(false);
   });
 });

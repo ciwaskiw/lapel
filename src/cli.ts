@@ -15,6 +15,7 @@ import { runAdd } from './commands/add.js';
 import { runTailor } from './commands/tailor.js';
 import { startMcpServer } from './mcp/server.js';
 import { runLeads } from './commands/leads.js';
+import { runRemove } from './commands/remove.js';
 
 const program = new Command();
 program
@@ -169,6 +170,18 @@ program
   .option('--dry-run', 'print the plan without writing files')
   .action(async (file: string, opts) => {
     await runLeads(loadConfig(), file, { dryRun: opts.dryRun });
+  });
+
+program
+  .command('remove')
+  .description('Remove jobs from the local pipeline (by company name, or a single --id).')
+  .argument('[company]', 'company name (as shown in `pipeline`)')
+  .option('--id <job-id>', 'remove a single job by id', (v) => parseInt(v, 10))
+  .action((company: string | undefined, opts) => {
+    const cfg = loadConfig();
+    const db = openDb(cfg.dbPath);
+    migrate(db);
+    console.log(runRemove(db, { company, id: opts.id }));
   });
 
 program.parseAsync(process.argv).catch((err) => {
