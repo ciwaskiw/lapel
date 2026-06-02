@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Config } from '../config.js';
-import { createClient } from '../agent/client.js';
+import { createBackend } from '../agent/backend.js';
 import { structuredCall } from '../agent/llm.js';
 import { INTERVIEW_SYSTEM, interviewUserPrompt } from '../agent/prompts/interview.js';
 import { SYNTH_SYSTEM, synthUserPrompt } from '../agent/prompts/synthesize-profile.js';
@@ -13,7 +13,7 @@ import { createPrompter } from '../profile/interview.js';
 const QuestionsSchema = z.object({ questions: z.array(z.string()).max(8) });
 
 export async function runProfileBuild(cfg: Config): Promise<void> {
-  const client = createClient(cfg);
+  const backend = createBackend(cfg);
   const sources = await extractProfileSources(cfg.profileDir);
   if (sources.length === 0)
     throw new Error(
@@ -29,7 +29,7 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
     existing,
     generateQuestions: (text, ex) =>
       structuredCall({
-        client,
+        backend,
         model: cfg.models.worker,
         system: INTERVIEW_SYSTEM,
         user: interviewUserPrompt(text, ex ?? undefined),
@@ -39,7 +39,7 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
     ask,
     synthesize: ({ sourceText: st, transcript, existing: ex }) =>
       structuredCall({
-        client,
+        backend,
         model: cfg.models.synth,
         system: SYNTH_SYSTEM,
         user: synthUserPrompt(st, transcript, ex ?? undefined),
@@ -56,7 +56,7 @@ export async function runProfileBuild(cfg: Config): Promise<void> {
 export async function runProfileUpdate(cfg: Config, note?: string): Promise<void> {
   const existing = loadProfile(cfg);
   if (!existing) throw new Error('No profile yet. Run `lapel profile build` first.');
-  const client = createClient(cfg);
+  const backend = createBackend(cfg);
   const transcript = note
     ? `Q: Apply this update.\nA: ${note}`
     : await (async () => {
@@ -65,7 +65,7 @@ export async function runProfileUpdate(cfg: Config, note?: string): Promise<void
         return `Q: What to change?\nA: ${a}`;
       })();
   const updated = await structuredCall({
-    client,
+    backend,
     model: cfg.models.synth,
     system: SYNTH_SYSTEM,
     user: synthUserPrompt('(see existing profile)', transcript, renderProfileMarkdown(existing)),

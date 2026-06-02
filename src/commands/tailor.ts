@@ -1,6 +1,6 @@
 import type { Config } from '../config.js';
 import { readFileSync } from 'node:fs';
-import { createClient } from '../agent/client.js';
+import { createBackend } from '../agent/backend.js';
 import { structuredCall } from '../agent/llm.js';
 import { TAILOR_SYSTEM, tailorUserPrompt, TailorOutputSchema } from '../agent/prompts/tailor.js';
 import { openDb, migrate, getJobById } from '../db/index.js';
@@ -25,7 +25,7 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
   if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
   const db = openDb(cfg.dbPath);
   migrate(db);
-  const client = createClient(cfg);
+  const backend = createBackend(cfg);
 
   let company = 'company';
   let title = 'role';
@@ -58,7 +58,7 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
       postingText,
       identifyGaps: (p, posting) =>
         structuredCall({
-          client,
+          backend,
           model: cfg.models.worker,
           system: GAP_SYSTEM,
           user: gapUserPrompt(p, posting),
@@ -92,7 +92,7 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
     extraExperience,
     synthesize: ({ profile, postingText, extra }) =>
       structuredCall({
-        client,
+        backend,
         model,
         system: TAILOR_SYSTEM,
         user: tailorUserPrompt(profile, postingText, extra),

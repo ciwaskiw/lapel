@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { openDb, migrate } from '../db/index.js';
 import { loadProfile } from '../profile/store.js';
-import { createClient } from '../agent/client.js';
+import { createBackend } from '../agent/backend.js';
 import { makeScorer } from '../scoring/score.js';
 import { structuredCall } from '../agent/llm.js';
 import { TAILOR_SYSTEM, tailorUserPrompt, TailorOutputSchema } from '../agent/prompts/tailor.js';
@@ -17,18 +17,18 @@ export async function startMcpServer(): Promise<void> {
   if (!profile) throw new Error('No profile found. Run `lapel profile build` first.');
   const db = openDb(cfg.dbPath);
   migrate(db);
-  const client = createClient(cfg);
+  const backend = createBackend(cfg);
 
   const h = makeHandlers({
     db,
     profile,
     deps: {
-      scorer: makeScorer({ client, model: cfg.models.worker, batchSize: cfg.scoringBatchSize }),
+      scorer: makeScorer({ backend, model: cfg.models.worker, batchSize: cfg.scoringBatchSize }),
       companiesFile: cfg.companiesFile,
       outputDir: cfg.outputDir,
       identifyGaps: (p, posting) =>
         structuredCall({
-          client,
+          backend,
           model: cfg.models.worker,
           system: GAP_SYSTEM,
           user: gapUserPrompt(p, posting),
@@ -37,7 +37,7 @@ export async function startMcpServer(): Promise<void> {
         }),
       synthesize: ({ profile, postingText, extra }) =>
         structuredCall({
-          client,
+          backend,
           model: cfg.models.worker,
           system: TAILOR_SYSTEM,
           user: tailorUserPrompt(profile, postingText, extra),

@@ -24,4 +24,9 @@ describe('loadConfig', () => {
     expect(c.debug).toBe(true);
     expect(c.scoringBatchSize).toBe(SCORING_BATCH_SIZE);
   });
+
+  it('selects the LLM backend (subscription default, api override)', () => {
+    expect(loadConfig('/x', {}).backend).toBe('subscription');
+    expect(loadConfig('/x', { LAPEL_BACKEND: 'api' }).backend).toBe('api');
+  });
 });

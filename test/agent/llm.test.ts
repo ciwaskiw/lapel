@@ -3,55 +3,36 @@ import { z } from 'zod';
 import { structuredCall } from '../../src/agent/llm.js';
 
 const schema = z.object({ score: z.number() });
-const toolUse = (input: unknown) => ({
-  content: [{ type: 'tool_use', name: 'emit', id: 't1', input }],
-});
+const backendOf = (fn: ReturnType<typeof vi.fn>) => ({ callOnce: fn });
+const base = { model: 'm', system: 's', user: 'u', toolName: 'emit', schema };
 
 describe('structuredCall', () => {
-  it('returns validated tool input', async () => {
-    const client = { messages: { create: vi.fn().mockResolvedValue(toolUse({ score: 9 })) } };
+  it('returns validated raw output from the backend', async () => {
     const out = await structuredCall({
-      client: client as never,
-      model: 'm',
-      system: 's',
-      user: 'u',
-      toolName: 'emit',
-      schema,
+      backend: backendOf(vi.fn().mockResolvedValue({ score: 9 })),
+      ...base,
     });
     expect(out).toEqual({ score: 9 });
   });
-
   it('repairs once on invalid output then succeeds', async () => {
-    const create = vi
+    const callOnce = vi
       .fn()
-      .mockResolvedValueOnce(toolUse({ score: 'NaN' }))
-      .mockResolvedValueOnce(toolUse({ score: 7 }));
-    const client = { messages: { create } };
-    const out = await structuredCall({
-      client: client as never,
-      model: 'm',
-      system: 's',
-      user: 'u',
-      toolName: 'emit',
-      schema,
-    });
+      .mockResolvedValueOnce({ score: 'NaN' })
+      .mockResolvedValueOnce({ score: 7 });
+    const out = await structuredCall({ backend: backendOf(callOnce), ...base });
     expect(out).toEqual({ score: 7 });
-    expect(create).toHaveBeenCalledTimes(2);
+    expect(callOnce).toHaveBeenCalledTimes(2);
   });
-
   it('throws after a failed repair', async () => {
-    const create = vi.fn().mockResolvedValue(toolUse({ score: 'x' }));
-    const client = { messages: { create } };
-    await expect(
-      structuredCall({
-        client: client as never,
-        model: 'm',
-        system: 's',
-        user: 'u',
-        toolName: 'emit',
-        schema,
-      }),
-    ).rejects.toThrow(/validation/i);
-    expect(create).toHaveBeenCalledTimes(2);
+    const callOnce = vi.fn().mockResolvedValue({ score: 'x' });
+    await expect(structuredCall({ backend: backendOf(callOnce), ...base })).rejects.toThrow(
+      /validation/i,
+    );
+    expect(callOnce).toHaveBeenCalledTimes(2);
+  });
+  it('passes a json schema into callOnce', async () => {
+    const callOnce = vi.fn().mockResolvedValue({ score: 1 });
+    await structuredCall({ backend: backendOf(callOnce), ...base });
+    expect(callOnce.mock.calls[0][0]).toHaveProperty('jsonSchema');
   });
 });

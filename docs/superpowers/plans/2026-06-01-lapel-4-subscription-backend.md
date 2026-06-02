@@ -14,19 +14,19 @@
 
 ## File Structure (Plan 4)
 
-| File | Change |
-|------|--------|
-| `src/agent/backend.ts` | **new** — `LlmBackend` interface + `RawCallRequest` + `createBackend(cfg)` factory |
-| `src/agent/backends/subscription.ts` | **new** — spawns the `claude` CLI; injectable `run` for tests |
-| `src/agent/backends/api.ts` | **new** — Anthropic Messages forced-tool `callOnce` (logic moved out of llm.ts) |
-| `src/agent/llm.ts` | **modify** — `structuredCall` takes a `backend`, keeps the validate+repair loop |
-| `src/config.ts` | **modify** — add `backend: 'subscription' \| 'api'` from `LAPEL_BACKEND` (default subscription) |
-| `src/scoring/score.ts` | **modify** — `makeScorer` takes `backend` instead of `client` |
-| `src/commands/profile.ts`, `src/commands/tailor.ts`, `src/mcp/server.ts`, `src/cli.ts` | **modify** — `createClient` → `createBackend`; pass `backend` to `structuredCall`/`makeScorer` |
-| `test/agent/llm.test.ts` | **modify** — mock a `backend.callOnce` instead of an Anthropic client |
-| `test/agent/backends/subscription.test.ts` | **new** — mock `run`, assert args + envelope parsing + error handling |
-| `test/agent/backend.test.ts` | **new** — `createBackend` selection (subscription default; api requires key) |
-| `test/scoring/score.test.ts`, `test/config.test.ts` | **modify** — `client`→`backend`; add `LAPEL_BACKEND` default/override test |
+| File                                                                                   | Change                                                                                          |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/agent/backend.ts`                                                                 | **new** — `LlmBackend` interface + `RawCallRequest` + `createBackend(cfg)` factory              |
+| `src/agent/backends/subscription.ts`                                                   | **new** — spawns the `claude` CLI; injectable `run` for tests                                   |
+| `src/agent/backends/api.ts`                                                            | **new** — Anthropic Messages forced-tool `callOnce` (logic moved out of llm.ts)                 |
+| `src/agent/llm.ts`                                                                     | **modify** — `structuredCall` takes a `backend`, keeps the validate+repair loop                 |
+| `src/config.ts`                                                                        | **modify** — add `backend: 'subscription' \| 'api'` from `LAPEL_BACKEND` (default subscription) |
+| `src/scoring/score.ts`                                                                 | **modify** — `makeScorer` takes `backend` instead of `client`                                   |
+| `src/commands/profile.ts`, `src/commands/tailor.ts`, `src/mcp/server.ts`, `src/cli.ts` | **modify** — `createClient` → `createBackend`; pass `backend` to `structuredCall`/`makeScorer`  |
+| `test/agent/llm.test.ts`                                                               | **modify** — mock a `backend.callOnce` instead of an Anthropic client                           |
+| `test/agent/backends/subscription.test.ts`                                             | **new** — mock `run`, assert args + envelope parsing + error handling                           |
+| `test/agent/backend.test.ts`                                                           | **new** — `createBackend` selection (subscription default; api requires key)                    |
+| `test/scoring/score.test.ts`, `test/config.test.ts`                                    | **modify** — `client`→`backend`; add `LAPEL_BACKEND` default/override test                      |
 
 `src/agent/client.ts` stays (used only by the api backend). NodeNext ESM → relative imports end in `.js`.
 
@@ -37,6 +37,7 @@
 > Implement as ONE coherent change so the build stays green. The plan code is exact; follow it.
 
 **Step 1 — `src/agent/backend.ts`:**
+
 ```ts
 import type { Config } from '../config.js';
 import { createClient } from './client.js';
@@ -64,10 +65,12 @@ export function createBackend(cfg: Config): LlmBackend {
 ```
 
 **Step 2 — `src/config.ts`:** add a `backend` field.
+
 - In `Config`: `backend: 'subscription' | 'api';`
 - In `loadConfig`: `backend: env.LAPEL_BACKEND === 'api' ? 'api' : 'subscription',`
 
 **Step 3 — `src/agent/backends/api.ts`** (move the forced-tool logic out of llm.ts):
+
 ```ts
 import type Anthropic from '@anthropic-ai/sdk';
 import type { LlmBackend, RawCallRequest } from '../backend.js';
@@ -98,6 +101,7 @@ export function apiBackend(client: Anthropic): LlmBackend {
 ```
 
 **Step 4 — `src/agent/backends/subscription.ts`:**
+
 ```ts
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -150,7 +154,12 @@ export function subscriptionBackend(opts: { command?: string; run?: RunClaude } 
         '--exclude-dynamic-system-prompt-sections',
       ];
       const { stdout, code } = await run(args, tmpdir());
-      let env: { is_error?: boolean; result?: string; subtype?: string; structured_output?: unknown };
+      let env: {
+        is_error?: boolean;
+        result?: string;
+        subtype?: string;
+        structured_output?: unknown;
+      };
       try {
         env = JSON.parse(stdout);
       } catch {
@@ -166,6 +175,7 @@ export function subscriptionBackend(opts: { command?: string; run?: RunClaude } 
 ```
 
 **Step 5 — `src/agent/llm.ts`** (now backend-driven; keep the validate+repair loop):
+
 ```ts
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { z } from 'zod';
@@ -190,16 +200,25 @@ export async function structuredCall<T>(args: StructuredCallArgs<T>): Promise<T>
       attempt === 0
         ? user
         : `${user}\n\nYour previous response failed schema validation. Re-emit valid data.`;
-    const raw = await backend.callOnce({ system, user: repaired, jsonSchema, model, toolName, maxTokens });
+    const raw = await backend.callOnce({
+      system,
+      user: repaired,
+      jsonSchema,
+      model,
+      toolName,
+      maxTokens,
+    });
     const parsed = schema.safeParse(raw);
     if (parsed.success) return parsed.data;
-    if (attempt === 1) throw new Error(`Structured output failed validation: ${parsed.error.message}`);
+    if (attempt === 1)
+      throw new Error(`Structured output failed validation: ${parsed.error.message}`);
   }
   throw new Error('unreachable');
 }
 ```
 
-**Step 6 — call sites:** replace the Anthropic *client* with a *backend* (`createClient` → `createBackend`):
+**Step 6 — call sites:** replace the Anthropic _client_ with a _backend_ (`createClient` → `createBackend`):
+
 - `src/scoring/score.ts`: change `makeScorer` deps `{ client: Anthropic; … }` → `{ backend: LlmBackend; … }`; change `BatchCall`'s first param `client` → `backend`; in `defaultCall` pass `backend` to `structuredCall`. (Import `LlmBackend` from `../agent/backend.js`; drop the `Anthropic` import.)
 - `src/cli.ts` (find + add actions): `makeScorer({ client: createClient(cfg), … })` → `makeScorer({ backend: createBackend(cfg), … })`; import `createBackend` from `./agent/backend.js`. The `--no-score` branch is unchanged (still doesn't construct a backend).
 - `src/commands/profile.ts`: `const client = createClient(cfg)` → `const backend = createBackend(cfg)`; every `structuredCall({ client, … })` → `structuredCall({ backend, … })`.
@@ -209,6 +228,7 @@ export async function structuredCall<T>(args: StructuredCallArgs<T>): Promise<T>
 **Step 7 — tests (TDD: write/adjust first, watch fail, implement, pass):**
 
 `test/agent/llm.test.ts` — replace the client mock with a backend mock:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
@@ -220,18 +240,26 @@ const base = { model: 'm', system: 's', user: 'u', toolName: 'emit', schema };
 
 describe('structuredCall', () => {
   it('returns validated raw output from the backend', async () => {
-    const out = await structuredCall({ backend: backendOf(vi.fn().mockResolvedValue({ score: 9 })), ...base });
+    const out = await structuredCall({
+      backend: backendOf(vi.fn().mockResolvedValue({ score: 9 })),
+      ...base,
+    });
     expect(out).toEqual({ score: 9 });
   });
   it('repairs once on invalid output then succeeds', async () => {
-    const callOnce = vi.fn().mockResolvedValueOnce({ score: 'NaN' }).mockResolvedValueOnce({ score: 7 });
+    const callOnce = vi
+      .fn()
+      .mockResolvedValueOnce({ score: 'NaN' })
+      .mockResolvedValueOnce({ score: 7 });
     const out = await structuredCall({ backend: backendOf(callOnce), ...base });
     expect(out).toEqual({ score: 7 });
     expect(callOnce).toHaveBeenCalledTimes(2);
   });
   it('throws after a failed repair', async () => {
     const callOnce = vi.fn().mockResolvedValue({ score: 'x' });
-    await expect(structuredCall({ backend: backendOf(callOnce), ...base })).rejects.toThrow(/validation/i);
+    await expect(structuredCall({ backend: backendOf(callOnce), ...base })).rejects.toThrow(
+      /validation/i,
+    );
     expect(callOnce).toHaveBeenCalledTimes(2);
   });
   it('passes the json schema + repair hint into callOnce', async () => {
@@ -243,17 +271,28 @@ describe('structuredCall', () => {
 ```
 
 `test/agent/backends/subscription.test.ts` — mock `run`:
+
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { subscriptionBackend, modelAlias } from '../../../src/agent/backends/subscription.js';
 
-const envelope = (o: unknown) => ({ stdout: JSON.stringify({ is_error: false, structured_output: o }), code: 0 });
+const envelope = (o: unknown) => ({
+  stdout: JSON.stringify({ is_error: false, structured_output: o }),
+  code: 0,
+});
 
 describe('subscriptionBackend', () => {
   it('passes -p/--json-schema/--model and returns structured_output', async () => {
     const run = vi.fn().mockResolvedValue(envelope({ score: 5 }));
     const b = subscriptionBackend({ run });
-    const out = await b.callOnce({ system: 'sys', user: 'usr', jsonSchema: { type: 'object' }, model: 'claude-opus-4-8', toolName: 'emit', maxTokens: 1024 });
+    const out = await b.callOnce({
+      system: 'sys',
+      user: 'usr',
+      jsonSchema: { type: 'object' },
+      model: 'claude-opus-4-8',
+      toolName: 'emit',
+      maxTokens: 1024,
+    });
     expect(out).toEqual({ score: 5 });
     const args = run.mock.calls[0][0] as string[];
     expect(args).toContain('-p');
@@ -264,16 +303,32 @@ describe('subscriptionBackend', () => {
   });
 
   it('throws when the envelope is an error', async () => {
-    const run = vi.fn().mockResolvedValue({ stdout: JSON.stringify({ is_error: true, result: 'nope' }), code: 0 });
+    const run = vi
+      .fn()
+      .mockResolvedValue({ stdout: JSON.stringify({ is_error: true, result: 'nope' }), code: 0 });
     await expect(
-      subscriptionBackend({ run }).callOnce({ system: '', user: '', jsonSchema: {}, model: 'claude-sonnet-4-6', toolName: 'x', maxTokens: 1 }),
+      subscriptionBackend({ run }).callOnce({
+        system: '',
+        user: '',
+        jsonSchema: {},
+        model: 'claude-sonnet-4-6',
+        toolName: 'x',
+        maxTokens: 1,
+      }),
     ).rejects.toThrow(/nope/);
   });
 
   it('throws on non-JSON output', async () => {
     const run = vi.fn().mockResolvedValue({ stdout: 'not json', code: 1 });
     await expect(
-      subscriptionBackend({ run }).callOnce({ system: '', user: '', jsonSchema: {}, model: 'claude-sonnet-4-6', toolName: 'x', maxTokens: 1 }),
+      subscriptionBackend({ run }).callOnce({
+        system: '',
+        user: '',
+        jsonSchema: {},
+        model: 'claude-sonnet-4-6',
+        toolName: 'x',
+        maxTokens: 1,
+      }),
     ).rejects.toThrow(/non-JSON/);
   });
 
@@ -286,6 +341,7 @@ describe('subscriptionBackend', () => {
 ```
 
 `test/agent/backend.test.ts` — selection:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { loadConfig } from '../../src/config.js';
@@ -308,16 +364,18 @@ describe('createBackend', () => {
 ```
 
 `test/config.test.ts` — add:
+
 ```ts
-  it('selects the LLM backend (subscription default, api override)', () => {
-    expect(loadConfig('/x', {}).backend).toBe('subscription');
-    expect(loadConfig('/x', { LAPEL_BACKEND: 'api' }).backend).toBe('api');
-  });
+it('selects the LLM backend (subscription default, api override)', () => {
+  expect(loadConfig('/x', {}).backend).toBe('subscription');
+  expect(loadConfig('/x', { LAPEL_BACKEND: 'api' }).backend).toBe('api');
+});
 ```
 
 `test/scoring/score.test.ts` — change `client: {} as never` → `backend: {} as never` (the tests inject a `call` mock, so nothing else changes; the mock `call`'s first param is now the backend — unused by the mock).
 
 **Step 8 — verify + commit:**
+
 ```
 npm test            # all green, no API key (everything mocked at callOnce/run)
 npm run lint
@@ -325,7 +383,9 @@ npm run typecheck
 npm run build
 node dist/cli.js find --help   # still works
 ```
+
 Boundary check still holds (core may not import `@anthropic-ai/sdk`; backends live under `src/agent/`).
+
 ```bash
 npm run format && git add -A
 git commit -m "feat(agent): pluggable LLM backend — subscription (claude CLI) default + api, via LAPEL_BACKEND"
@@ -347,6 +407,7 @@ git status --short   # clean
 ---
 
 ## Self-Review (run before handoff)
+
 - [ ] **Spec coverage:** subscription backend via verified `claude` flags ✓; api backend preserved ✓; `LAPEL_BACKEND` selection (subscription default) ✓; structuredCall validate+repair preserved ✓; docs ✓.
 - [ ] **Keyless:** `npm test` passes with no `ANTHROPIC_API_KEY` (backends mocked at `callOnce`/`run`). Subscription path needs no key by design.
 - [ ] **Boundary intact:** no `@anthropic-ai/sdk` import outside `src/agent/**`; `child_process` only in `backends/subscription.ts`.

@@ -8,7 +8,7 @@ import { loadWatchlist } from './sources/index.js';
 import { runFind } from './commands/find.js';
 import { renderPipeline, changeStatus } from './commands/pipeline.js';
 import type { JobStatus } from './db/index.js';
-import { createClient } from './agent/client.js';
+import { createBackend } from './agent/backend.js';
 import { makeScorer } from './scoring/score.js';
 import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/profile.js';
 import { runAdd } from './commands/add.js';
@@ -39,7 +39,7 @@ program
       opts.score === false
         ? null
         : makeScorer({
-            client: createClient(cfg),
+            backend: createBackend(cfg),
             model: cfg.models.worker,
             batchSize: cfg.scoringBatchSize,
           });
@@ -129,7 +129,7 @@ program
       opts.score === false
         ? null
         : makeScorer({
-            client: createClient(cfg),
+            backend: createBackend(cfg),
             model: cfg.models.worker,
             batchSize: cfg.scoringBatchSize,
           });

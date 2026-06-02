@@ -14,6 +14,7 @@ export interface Config {
   models: { worker: string; synth: string };
   scoringBatchSize: number;
   debug: boolean;
+  backend: 'subscription' | 'api';
 }
 
 export function loadConfig(
@@ -36,5 +37,6 @@ export function loadConfig(
     },
     scoringBatchSize: SCORING_BATCH_SIZE,
     debug: env.LAPEL_DEBUG === '1',
+    backend: env.LAPEL_BACKEND === 'api' ? 'api' : 'subscription',
   };
 }

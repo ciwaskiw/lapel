@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { LlmBackend } from '../agent/backend.js';
 import { structuredCall } from '../agent/llm.js';
 import { SCORE_SYSTEM, scoreUserPrompt } from '../agent/prompts/score.js';
 import { JobScoreBatchSchema } from './rubric.js';
@@ -8,7 +8,7 @@ import type { NormalizedJob } from '../sources/types.js';
 import type { Profile } from '../profile/schema.js';
 
 type BatchCall = (
-  client: Anthropic,
+  backend: LlmBackend,
   model: string,
   profile: Profile,
   jobs: NormalizedJob[],
@@ -22,9 +22,9 @@ type BatchCall = (
   }[];
 }>;
 
-const defaultCall: BatchCall = (client, model, profile, jobs) =>
+const defaultCall: BatchCall = (backend, model, profile, jobs) =>
   structuredCall({
-    client,
+    backend,
     model,
     system: SCORE_SYSTEM,
     user: scoreUserPrompt(profile, jobs),
@@ -34,7 +34,7 @@ const defaultCall: BatchCall = (client, model, profile, jobs) =>
   });
 
 export function makeScorer(deps: {
-  client: Anthropic;
+  backend: LlmBackend;
   model: string;
   batchSize: number;
   call?: BatchCall;
@@ -45,7 +45,7 @@ export function makeScorer(deps: {
     for (let i = 0; i < jobs.length; i += deps.batchSize) {
       const batch = jobs.slice(i, i + deps.batchSize);
       try {
-        const { scores } = await call(deps.client, deps.model, profile, batch);
+        const { scores } = await call(deps.backend, deps.model, profile, batch);
         const byId = new Map(scores.map((s) => [s.externalId, s]));
         for (const j of batch) {
           const s = byId.get(j.externalId);

@@ -31,7 +31,7 @@ describe('makeScorer', () => {
         { externalId: 'b', score: 30, matchedSkills: [], missingSkills: ['Go'], reasons: 'weak' },
       ],
     });
-    const scorer = makeScorer({ client: {} as never, model: 'm', batchSize: 10, call: fakeCall });
+    const scorer = makeScorer({ backend: {} as never, model: 'm', batchSize: 10, call: fakeCall });
     const result = await scorer([job('a'), job('b')], profile);
     expect(result.get('greenhouse:a')!.score).toBe(80);
     expect(result.get('greenhouse:b')!.missingSkills).toEqual(['Go']);
@@ -47,14 +47,14 @@ describe('makeScorer', () => {
         reasons: '',
       })),
     }));
-    const scorer = makeScorer({ client: {} as never, model: 'm', batchSize: 2, call: fakeCall });
+    const scorer = makeScorer({ backend: {} as never, model: 'm', batchSize: 2, call: fakeCall });
     await scorer([job('a'), job('b'), job('c')], profile);
     expect(fakeCall).toHaveBeenCalledTimes(2);
   });
 
   it('isolates a failing batch (leaves those jobs unscored)', async () => {
     const fakeCall = vi.fn().mockRejectedValue(new Error('llm down'));
-    const scorer = makeScorer({ client: {} as never, model: 'm', batchSize: 10, call: fakeCall });
+    const scorer = makeScorer({ backend: {} as never, model: 'm', batchSize: 10, call: fakeCall });
     const result = await scorer([job('a')], profile);
     expect(result.size).toBe(0);
   });
