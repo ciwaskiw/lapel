@@ -42,14 +42,23 @@ export async function tailorPosting(deps: TailorDeps): Promise<TailorResult> {
     postingText: deps.postingText,
     extra: deps.extraExperience,
   });
-  const dir = path.join(deps.outputDir, `${slug(deps.company)}-${slug(deps.title)}`);
+  // Prefer the company/role the model read from the posting; fall back to what the caller passed
+  // (e.g. a DB job's company/title). This keeps URL-tailored folders from defaulting to "company".
+  const company = out.company || deps.company;
+  const title = out.roleTitle || deps.title;
+  const dir = path.join(deps.outputDir, `${slug(company)}-${slug(title)}`);
   mkdirSync(dir, { recursive: true });
   const resumePath = path.join(dir, 'resume-summary.md');
   const coverPath = path.join(dir, 'cover-letter.md');
   const fitNotesPath = path.join(dir, 'fit-notes.md');
+  const keywordsBlock = out.atsKeywords?.length
+    ? `\n\n## ATS keywords (you genuinely match — make sure these appear in your résumé)\n${out.atsKeywords
+        .map((k) => `- ${k}`)
+        .join('\n')}\n`
+    : '';
   writeFileSync(resumePath, out.resumeSummary);
   writeFileSync(coverPath, out.coverLetter);
-  writeFileSync(fitNotesPath, out.fitNotes);
+  writeFileSync(fitNotesPath, out.fitNotes + keywordsBlock);
   if (deps.jobId != null)
     insertApplication(deps.db, { jobId: deps.jobId, resumePath, coverPath, fitNotesPath });
   return { dir, resumePath, coverPath, fitNotesPath };
