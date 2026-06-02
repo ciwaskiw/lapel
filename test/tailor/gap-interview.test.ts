@@ -54,4 +54,44 @@ describe('runGapInterview', () => {
     expect(ask).not.toHaveBeenCalled();
     expect(proposals).toHaveLength(0);
   });
+
+  it('lets the user pass on questions and backfills until the target is answered', async () => {
+    const identify = vi.fn().mockResolvedValue({
+      gaps: [
+        { skill: 'Postgres', question: 'Q1' },
+        { skill: 'Kafka', question: 'Q2' },
+        { skill: 'Go', question: 'Q3' },
+        { skill: 'GraphQL', question: 'Q4' },
+        { skill: 'Redis', question: 'Q5' }, // backup — should never be asked
+      ],
+    });
+    const ask = vi
+      .fn()
+      .mockResolvedValueOnce('pass') // Q1 passed
+      .mockResolvedValueOnce('Built the Kafka pipeline') // Q2 answered (1)
+      .mockResolvedValueOnce('Wrote services in Go') // Q3 answered (2)
+      .mockResolvedValueOnce('Owned the GraphQL layer'); // Q4 answered (3) → stop
+    const { proposals } = await runGapInterview({
+      profile,
+      postingText: 'x',
+      identifyGaps: identify,
+      ask,
+    });
+    expect(proposals.map((p) => p.addCoreSkills?.[0])).toEqual(['Kafka', 'Go', 'GraphQL']);
+    expect(ask).toHaveBeenCalledTimes(4); // passed Q1, answered Q2-Q4, stopped before Q5
+  });
+
+  it('treats "pass" as a skip (no proposal)', async () => {
+    const identify = vi
+      .fn()
+      .mockResolvedValue({ gaps: [{ skill: 'Postgres', question: 'Relational DB story?' }] });
+    const ask = vi.fn().mockResolvedValue('pass');
+    const { proposals } = await runGapInterview({
+      profile,
+      postingText: 'x',
+      identifyGaps: identify,
+      ask,
+    });
+    expect(proposals).toHaveLength(0);
+  });
 });
