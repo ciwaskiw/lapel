@@ -9,3 +9,6 @@ profile/*
 !profile/profile.template.json
 # the user's real watchlist is private; ship the example only
 companies.yaml
+# personal lead lists (messy input + the generated url list)
+leads-urls.txt
+leads*.md
