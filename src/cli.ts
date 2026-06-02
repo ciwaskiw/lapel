@@ -121,7 +121,7 @@ program
       ? readFileSync(opts.urls, 'utf8')
           .split('\n')
           .map((s) => s.trim())
-          .filter(Boolean)
+          .filter((s) => s && !s.startsWith('#')) // skip blanks and # comments
       : [];
     const urls = [...urlArgs, ...fromFile];
     if (urls.length === 0) throw new Error('Provide URLs as arguments or via --urls <file>.');
