@@ -52,32 +52,36 @@ export async function runTailor(cfg: Config, opts: TailorCliOpts): Promise<void>
   let extraExperience: string | undefined;
   let activeProfile = profile;
   if (opts.interview !== false && process.stdin.isTTY) {
-    const ask = createPrompter();
-    const { extraExperience: extra, proposals } = await runGapInterview({
-      profile: activeProfile,
-      postingText,
-      identifyGaps: (p, posting) =>
-        structuredCall({
-          backend,
-          model: cfg.models.worker,
-          system: GAP_SYSTEM,
-          user: gapUserPrompt(p, posting),
-          toolName: 'emit_gaps',
-          schema: GapsSchema,
-        }),
-      ask,
-    });
-    extraExperience = extra || undefined;
-    const confirm = async (reason: string) =>
-      /^y/i.test(await ask(`Update your profile? ${reason} (y/N) `));
-    for (const u of proposals) {
-      const next = await confirmAndApply({
+    const prompter = createPrompter();
+    try {
+      const { extraExperience: extra, proposals } = await runGapInterview({
         profile: activeProfile,
-        update: u,
-        confirm,
-        save: (pp) => saveProfile(cfg, pp),
+        postingText,
+        identifyGaps: (p, posting) =>
+          structuredCall({
+            backend,
+            model: cfg.models.worker,
+            system: GAP_SYSTEM,
+            user: gapUserPrompt(p, posting),
+            toolName: 'emit_gaps',
+            schema: GapsSchema,
+          }),
+        ask: prompter.ask,
       });
-      if (next) activeProfile = next;
+      extraExperience = extra || undefined;
+      const confirm = async (reason: string) =>
+        /^y/i.test(await prompter.ask(`Update your profile? ${reason} (y/N) `));
+      for (const u of proposals) {
+        const next = await confirmAndApply({
+          profile: activeProfile,
+          update: u,
+          confirm,
+          save: (pp) => saveProfile(cfg, pp),
+        });
+        if (next) activeProfile = next;
+      }
+    } finally {
+      prompter.close();
     }
   }
   const model = opts.opus ? cfg.models.synth : cfg.models.worker;
