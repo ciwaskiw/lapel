@@ -26,13 +26,14 @@ describe('ashby adapter', () => {
     expect(j.description).toContain('Go');
   });
 
-  it('POSTs to the ashby posting-api endpoint', async () => {
+  it('GETs the ashby posting-api endpoint (a POST 401s)', async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValue({ ok: true, json: async () => ({ jobs: [] }) } as Response);
     await ashby.fetchJobs({ source: 'ashby', slug: 'acme' }, fetchImpl as unknown as typeof fetch);
     const [url, init] = fetchImpl.mock.calls[0];
     expect(String(url)).toContain('posting-api/job-board/acme');
-    expect((init as RequestInit).method).toBe('POST');
+    // GET: no explicit method set (fetch defaults to GET)
+    expect((init as RequestInit)?.method).toBeUndefined();
   });
 });

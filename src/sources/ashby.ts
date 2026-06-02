@@ -18,13 +18,10 @@ export const ashby: SourceAdapter & {
 } = {
   source: 'ashby',
   async fetchJobs(entry: WatchlistEntry, fetchImpl: typeof fetch = fetch) {
+    // Ashby's public posting API is a GET (a POST returns 401).
     const url = `https://api.ashbyhq.com/posting-api/job-board/${entry.slug}`;
     const data = await fetchJson<{ jobs: AshbyJob[] }>(url, {
-      init: {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      },
+      init: { headers: { accept: 'application/json' } },
       fetchImpl,
     });
     return (data.jobs ?? []).map((j) => ({
