@@ -53,3 +53,15 @@ All LLM calls go through `structuredCall()` (`src/agent/llm.ts`) → an `LlmBack
 - Design spec + implementation plans: `docs/superpowers/{specs,plans}/`.
 - **Never commit personal data.** Gitignored: `profile/*` (except `.gitkeep` + template),
   `companies.yaml`, `leads-urls.txt`/`leads*.md`, `*.db`, `output/`, `.env`.
+
+## Project status & continuing in a fresh session
+
+Built so far (all on `main`): Plans 1–6 + `lapel remove`. Commands: `profile`, `find`, `add`,
+`pipeline`, `status`, `tailor`, `mcp`, `leads`, `remove`. ~102 tests, runs on the Pro subscription
+(`LAPEL_BACKEND=subscription`, no API key).
+
+To pick up in a new chat: this file auto-loads; then read **`docs/BACKLOG.md`** (what's not built yet,
+with origins) and the relevant **`docs/superpowers/plans/`** files. The commit history is the
+chronological record. The agentic build process itself (brainstorm → committed spec → sequenced
+plans → subagent execution, Opus-plans/Sonnet-builds) is documented in the README's "How this was
+built" and the specs/plans — keep using it for new features (write a plan, execute via subagents).
