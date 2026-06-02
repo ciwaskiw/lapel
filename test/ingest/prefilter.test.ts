@@ -11,14 +11,14 @@ const profile = (over: Partial<Profile['preferences']> = {}): Profile => ({
   experience: [],
   notes: [],
   preferences: {
-    targetRoles: [],
+    targetRoles: ['Senior Full-stack Engineer'],
     seniority: ['senior', 'staff'],
     locations: [],
     remote: 'any',
     maxCommuteMiles: null,
     minBaseComp: null,
     mustHave: ['TypeScript'],
-    dealbreakers: ['PHP'],
+    dealbreakers: ['Relocation'],
     ...over,
   },
 });
@@ -27,33 +27,50 @@ const j = (over: Partial<NormalizedJob>): NormalizedJob => ({
   source: 'greenhouse',
   externalId: 'x',
   company: 'A',
-  title: 'Senior Engineer',
+  title: 'Senior Software Engineer',
   url: 'u',
   location: 'Remote',
   remote: true,
-  description: 'We use TypeScript and Node',
+  description: 'We use Go and Kubernetes',
   postedAt: null,
   raw: {},
   ...over,
 });
 
 describe('prefilter', () => {
-  it('drops on dealbreaker term', () => {
-    const { dropped } = prefilter([j({ description: 'Legacy PHP shop' })], profile());
-    expect(dropped[0].reason).toMatch(/dealbreaker/i);
+  it('keeps an engineering role even when must-have keywords are absent (no description gating)', () => {
+    const { kept, dropped } = prefilter(
+      [j({ description: 'We use Go and Kubernetes' })],
+      profile(),
+    );
+    expect(kept).toHaveLength(1);
+    expect(dropped).toHaveLength(0);
   });
 
-  it('drops when no mustHave term is present anywhere', () => {
-    const { dropped } = prefilter([j({ title: 'Engineer', description: 'We use Go' })], profile());
-    expect(dropped[0].reason).toMatch(/must-have/i);
+  it('does NOT drop on a dealbreaker word appearing (e.g. negated boilerplate)', () => {
+    const { kept } = prefilter(
+      [j({ description: 'As a remote company we do not offer relocation support.' })],
+      profile(),
+    );
+    expect(kept).toHaveLength(1);
   });
 
-  it('drops on clear seniority mismatch', () => {
-    const { dropped } = prefilter([j({ title: 'Junior Engineer Intern' })], profile());
+  it('drops a clearly non-engineering title (different job family)', () => {
+    const { dropped } = prefilter([j({ title: 'Art Director' })], profile());
+    expect(dropped[0].reason).toMatch(/job family/i);
+  });
+
+  it('keeps a non-eng-marker title that still has an engineering term', () => {
+    const { kept } = prefilter([j({ title: 'Sales Engineer' })], profile());
+    expect(kept).toHaveLength(1);
+  });
+
+  it('drops a junior title when targeting senior', () => {
+    const { dropped } = prefilter([j({ title: 'Junior Software Engineer' })], profile());
     expect(dropped[0].reason).toMatch(/seniority/i);
   });
 
-  it('drops onsite job when preference is remote', () => {
+  it('drops an on-site role when remote-only is required', () => {
     const { dropped } = prefilter(
       [j({ remote: false, location: 'New York, NY' })],
       profile({ remote: 'remote' }),
@@ -61,14 +78,13 @@ describe('prefilter', () => {
     expect(dropped[0].reason).toMatch(/remote/i);
   });
 
-  it('keeps a clearly matching job', () => {
-    const { kept, dropped } = prefilter([j({})], profile());
+  it('keeps unknown/ambiguous titles (conservative)', () => {
+    const { kept } = prefilter([j({ title: 'Senior Data Platform Engineer' })], profile());
     expect(kept).toHaveLength(1);
-    expect(dropped).toHaveLength(0);
   });
 
-  it('keeps when unsure (no mustHave configured)', () => {
-    const { kept } = prefilter([j({ description: 'We use Go' })], profile({ mustHave: [] }));
-    expect(kept).toHaveLength(1);
+  it('does not let a shared seniority word ("Senior") rescue a different family', () => {
+    const { dropped } = prefilter([j({ title: 'Senior Product Designer' })], profile());
+    expect(dropped[0].reason).toMatch(/job family/i);
   });
 });

@@ -44,7 +44,7 @@ describe('ingest', () => {
   });
 
   it('dedups, prefilters, persists with status=new and no scorer leaves score null', async () => {
-    const summary = await ingest(db, [j('a'), j('b', { description: 'PHP only' })], profile, {
+    const summary = await ingest(db, [j('a'), j('b', { title: 'Marketing Manager' })], profile, {
       score: null,
     });
     expect(summary.added).toBe(1);
