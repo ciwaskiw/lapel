@@ -46,14 +46,16 @@ Job hunting splits into "find roles worth applying to" and "tailor each applicat
 
 ## Quickstart
 
-> Requires **Node 22** (the native `better-sqlite3` build needs it) and an Anthropic API key.
+> Requires **Node 22** (the native `better-sqlite3` build needs it). By default lapel uses your
+> **Claude Pro/Max subscription** via the Claude Code `claude` CLI — **no API key** (see
+> [LLM backends](#llm-backends)). Prefer the API? Set `LAPEL_BACKEND=api` + `ANTHROPIC_API_KEY`.
 
 ```bash
 git clone <your-fork> lapel && cd lapel
 npm install
 npm run build
 
-cp .env.example .env                       # add ANTHROPIC_API_KEY
+cp .env.example .env                       # default backend=subscription needs no key
 cp companies.example.yaml companies.yaml   # edit your ATS watchlist
 
 # drop your résumé / LinkedIn export (PDFs) into ./profile/
@@ -81,6 +83,20 @@ node dist/cli.js add https://boards.greenhouse.io/acme/jobs/123
 | `tailor <id\|--url\|--text>`        | Generate tailored docs (`--opus` for the synthesis tier, `--no-interview` to skip the gap-interview) |
 | `mcp`                               | Start the MCP server on stdio                                                                        |
 
+## LLM backends
+
+lapel's LLM calls go through one seam, so the provider is pluggable via `LAPEL_BACKEND`:
+
+- **`subscription` (default)** — shells out to the Claude Code `claude` CLI in headless mode
+  (`claude -p … --json-schema … --output-format json`), which runs on your **Claude Pro/Max
+  subscription**. No API key; just have `claude` installed and logged in. Usage counts against your
+  plan's **rate limits** (the `total_cost_usd` Claude Code reports is a notional estimate, not a
+  charge) — so for big watchlists, lean on `find --no-score` and tailor selectively.
+- **`api`** — uses the Anthropic Messages API (structured tool use). Set `LAPEL_BACKEND=api` and
+  `ANTHROPIC_API_KEY`. Pay-as-you-go; better for high volume.
+
+Both honor the model tiering (worker = Sonnet, synthesis = Opus via `--opus`/config).
+
 ## The living profile
 
 Your profile is **your data, not the repo's** — `profile/` (PDFs + the generated `profile.json`/`profile.md`), `companies.yaml`, `output/`, the `*.db`, and `.env` are all gitignored. The repo ships a `profile.template.json` so every user builds their own.
@@ -96,12 +112,14 @@ It's a _living_ artifact: `profile build` is re-runnable, `profile update --note
   "mcpServers": {
     "lapel": {
       "command": "node",
-      "args": ["/absolute/path/to/lapel/dist/cli.js", "mcp"],
-      "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+      "args": ["/absolute/path/to/lapel/dist/cli.js", "mcp"]
     }
   }
 }
 ```
+
+The default `subscription` backend needs no env. To use the API backend instead, add
+`"env": { "LAPEL_BACKEND": "api", "ANTHROPIC_API_KEY": "sk-ant-..." }` to the server entry.
 
 In the MCP context `tailor` runs non-interactively: it returns the identified gap questions in its result so the calling agent can ask them.
 
@@ -114,10 +132,11 @@ Only **public ATS APIs** (Greenhouse/Lever/Ashby) and postings you explicitly ha
 This repo is also a demonstration of a disciplined agentic-development workflow — every stage is committed so the process is auditable:
 
 1. **Brainstorm → spec.** Requirements and architecture were explored interactively, then written to a committed design spec ([`docs/superpowers/specs/`](docs/superpowers/specs/)) as the single source of truth.
-2. **Spec → plans.** The spec was decomposed into three sequenced, test-driven implementation plans ([`docs/superpowers/plans/`](docs/superpowers/plans/)): foundation, intelligence, surface.
+2. **Spec → plans.** The spec was decomposed into sequenced, test-driven implementation plans ([`docs/superpowers/plans/`](docs/superpowers/plans/)): foundation, intelligence, surface — and later a fourth, the pluggable LLM backend.
 3. **Tiered, subagent-driven execution.** Planning and review ran on a stronger model (Opus); each plan task was implemented by a fresh, cheaper subagent (Sonnet) and reviewed against the plan before the next task — TDD throughout, frequent commits.
 4. **Honest course-correction.** Mid-build, the originally specified `@anthropic-ai/claude-agent-sdk` turned out to be unused and to break a clean `npm install` (a `zod` v4 peer conflict). It was dropped in favor of the `@anthropic-ai/sdk` Messages API (structured tool use) plus a _published_ MCP server — see the amendment note atop the spec. The agentic + MCP value is in the design (tool-use loops, the living-profile feedback loop, a published server), not in any one package.
 5. **Runtime tiering mirrors the build.** A fast worker model (Sonnet) handles scoring and most tailoring; an opt-in synthesis tier (Opus, via `--opus`/config) handles profile synthesis and final polish.
+6. **The boundary paid off.** When it turned out a Claude Pro subscription doesn't include API access, swapping the whole LLM provider (to a subscription backend that drives the Claude Code CLI) was a contained change — _because_ every model call already went through one enforced seam. See [LLM backends](#llm-backends) and Plan 4.
 
 The commit history, specs, and plans together tell the story of _how_ the tool was designed and built with AI — not just what it does.
 
