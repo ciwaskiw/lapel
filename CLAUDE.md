@@ -39,6 +39,11 @@ All LLM calls go through `structuredCall()` (`src/agent/llm.ts`) → an `LlmBack
 - TypeScript strict, **NodeNext ESM** → relative imports MUST end in `.js` (e.g. `./config.js`).
 - Prettier-clean; run `npm run format` and stage the result before committing.
 - Commands: `profile build|update|show` · `find` · `add` · `pipeline` · `status` · `tailor` · `mcp`.
+- **Prefilter** (`src/ingest/prefilter.ts`) is deterministic and conservative: it drops only on
+  reliable **title/structured** signals (junior-when-senior, on-site-when-remote, clearly-different
+  job family). It does NOT substring-match skills/must-haves/dealbreakers against descriptions —
+  that fuzzy judgment is the LLM scorer's job (it weighs must-haves/dealbreakers in context). When
+  unsure, keep. Users filter results with `--min-score`.
 - Sources supported by `find`: Greenhouse, Lever, Ashby (Ashby's posting API is **GET**, not POST).
   `add <url>` ingests arbitrary posting URLs via direct fetch + html-to-text (JS-rendered pages like
   Workday extract poorly — prefer `tailor --text <file>` for those).

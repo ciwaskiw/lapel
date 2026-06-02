@@ -41,7 +41,7 @@ Job hunting splits into "find roles worth applying to" and "tailor each applicat
 ```
 
 - **Sources** (`src/sources/`, `src/fetcher/`) and the **ingest pipeline** (`src/ingest/`) are pure TypeScript with **no LLM dependency** — fully unit-tested without a network or API key.
-- **Scoring** runs a cheap deterministic **prefilter** (location/seniority/dealbreakers/must-haves) _before_ any LLM call, then an LLM **rubric** scores what survives — cost-aware by construction.
+- **Scoring** runs a cheap deterministic **prefilter** _before_ any LLM call. The prefilter is deliberately conservative — it only drops on reliable **title/structured** signals (junior titles when you want senior, on-site when you require remote, clearly-different job families like "Art Director"). It does **not** keyword-match skills or dealbreakers against the description; that fuzzy judgment is the LLM **rubric's** job — it scores what survives and weighs your must-haves/dealbreakers _in context_. Filter the results with `--min-score`. Cost-aware by construction.
 - The **CLI** and the **published MCP server** are thin wrappers over the same core: no business logic is duplicated between them.
 
 ## Quickstart

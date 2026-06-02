@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Read `CLAUDE.md` first (Node 22; NodeNext `.js` imports; deterministic core must not import the LLM layer; tests run with no API key).
 
-**Goal:** Stop the prefilter from over-dropping. It currently substring-matches *fuzzy concepts* (must-haves like "Agile development", dealbreakers like "Relocation") against the full job description as **hard drop-gates**, which (a) drops every job when must-haves are conceptual, and (b) false-positives on negated boilerplate ("no relocation support"). Redesign it to gate **only on reliable title/structured signals**, and move fuzzy fit (skills, culture, dealbreaker nuance) to the LLM scorer.
+**Goal:** Stop the prefilter from over-dropping. It currently substring-matches _fuzzy concepts_ (must-haves like "Agile development", dealbreakers like "Relocation") against the full job description as **hard drop-gates**, which (a) drops every job when must-haves are conceptual, and (b) false-positives on negated boilerplate ("no relocation support"). Redesign it to gate **only on reliable title/structured signals**, and move fuzzy fit (skills, culture, dealbreaker nuance) to the LLM scorer.
 
-**Architecture / principle:** *The deterministic prefilter only drops on high-confidence signals it can read reliably — the job **title** (seniority, job family) and the **structured remote flag**. It no longer substring-matches must-haves or dealbreakers against the description.* The LLM scorer becomes the "de-fuzzer": it weighs skills, culture, must-haves, and dealbreakers **in context** and returns a 0–100 score; the user filters with `--min-score`. Conservative throughout: when unsure, **keep** the job.
+**Architecture / principle:** _The deterministic prefilter only drops on high-confidence signals it can read reliably — the job **title** (seniority, job family) and the **structured remote flag**. It no longer substring-matches must-haves or dealbreakers against the description._ The LLM scorer becomes the "de-fuzzer": it weighs skills, culture, must-haves, and dealbreakers **in context** and returns a 0–100 score; the user filters with `--min-score`. Conservative throughout: when unsure, **keep** the job.
 
 **Tech Stack:** No new deps. Confined to `src/ingest/prefilter.ts`, the scoring prompt, a couple of tests, and docs.
 
@@ -12,13 +12,13 @@
 
 ## What changes
 
-| Signal | Before | After |
-|---|---|---|
-| Missing must-have keyword | **hard drop** (substring on description) | **removed** — must-haves weighed by the scorer |
-| Dealbreaker keyword in description | **hard drop** (substring; negation-blind) | **removed** — dealbreakers weighed by the scorer in context |
-| Junior/intern title when targeting senior | drop | **keep** (unchanged) |
-| Remote-only pref + on-site role (`remote===false`) | drop | **keep** (unchanged) |
-| Clearly non-target job family (title) | (none) | **new** — conservative title-based drop |
+| Signal                                             | Before                                    | After                                                       |
+| -------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------- |
+| Missing must-have keyword                          | **hard drop** (substring on description)  | **removed** — must-haves weighed by the scorer              |
+| Dealbreaker keyword in description                 | **hard drop** (substring; negation-blind) | **removed** — dealbreakers weighed by the scorer in context |
+| Junior/intern title when targeting senior          | drop                                      | **keep** (unchanged)                                        |
+| Remote-only pref + on-site role (`remote===false`) | drop                                      | **keep** (unchanged)                                        |
+| Clearly non-target job family (title)              | (none)                                    | **new** — conservative title-based drop                     |
 
 ---
 
@@ -27,6 +27,7 @@
 **Files:** rewrite `src/ingest/prefilter.ts`; rewrite `test/ingest/prefilter.test.ts`; fix one case in `test/ingest/pipeline.test.ts`.
 
 - [ ] **Step 1 — rewrite `src/ingest/prefilter.ts`:**
+
 ```ts
 import type { Profile } from '../profile/schema.js';
 import type { NormalizedJob } from '../sources/types.js';
@@ -47,7 +48,17 @@ const ROLE_TERMS =
   /\b(engineer|engineering|developer|swe|sde|programmer|architect|full[- ]?stack|back[- ]?end|front[- ]?end|software|platform|infrastructure|devops|sre)\b/i;
 
 const SENIORITY_STOPWORDS = new Set([
-  'senior', 'staff', 'principal', 'lead', 'junior', 'mid', 'level', 'the', 'and', 'of', 'for',
+  'senior',
+  'staff',
+  'principal',
+  'lead',
+  'junior',
+  'mid',
+  'level',
+  'the',
+  'and',
+  'of',
+  'for',
 ]);
 
 function wantsSenior(profile: Profile): boolean {
@@ -109,6 +120,7 @@ export function prefilter(
 ```
 
 - [ ] **Step 2 — rewrite `test/ingest/prefilter.test.ts`** (locks the new behavior):
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { prefilter } from '../../src/ingest/prefilter.js';
@@ -116,23 +128,45 @@ import type { Profile } from '../../src/profile/schema.js';
 import type { NormalizedJob } from '../../src/sources/types.js';
 
 const profile = (over: Partial<Profile['preferences']> = {}): Profile => ({
-  version: 1, updatedAt: '', basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
-  skills: { core: [], familiar: [] }, experience: [], notes: [],
+  version: 1,
+  updatedAt: '',
+  basics: { name: '', headline: '', yearsExperience: 8, summary: '' },
+  skills: { core: [], familiar: [] },
+  experience: [],
+  notes: [],
   preferences: {
-    targetRoles: ['Senior Full-stack Engineer'], seniority: ['senior', 'staff'], locations: [],
-    remote: 'any', maxCommuteMiles: null, minBaseComp: null,
-    mustHave: ['TypeScript'], dealbreakers: ['Relocation'], ...over,
+    targetRoles: ['Senior Full-stack Engineer'],
+    seniority: ['senior', 'staff'],
+    locations: [],
+    remote: 'any',
+    maxCommuteMiles: null,
+    minBaseComp: null,
+    mustHave: ['TypeScript'],
+    dealbreakers: ['Relocation'],
+    ...over,
   },
 });
 
 const j = (over: Partial<NormalizedJob>): NormalizedJob => ({
-  source: 'greenhouse', externalId: 'x', company: 'A', title: 'Senior Software Engineer', url: 'u',
-  location: 'Remote', remote: true, description: 'We use Go and Kubernetes', postedAt: null, raw: {}, ...over,
+  source: 'greenhouse',
+  externalId: 'x',
+  company: 'A',
+  title: 'Senior Software Engineer',
+  url: 'u',
+  location: 'Remote',
+  remote: true,
+  description: 'We use Go and Kubernetes',
+  postedAt: null,
+  raw: {},
+  ...over,
 });
 
 describe('prefilter', () => {
   it('keeps an engineering role even when must-have keywords are absent (no description gating)', () => {
-    const { kept, dropped } = prefilter([j({ description: 'We use Go and Kubernetes' })], profile());
+    const { kept, dropped } = prefilter(
+      [j({ description: 'We use Go and Kubernetes' })],
+      profile(),
+    );
     expect(kept).toHaveLength(1);
     expect(dropped).toHaveLength(0);
   });
@@ -185,7 +219,7 @@ describe('prefilter', () => {
 - [ ] **Step 4 — run + verify:** `npx vitest run test/ingest` → green; then `npm test && npm run lint && npm run typecheck && npm run build` → all green.
 
 - [ ] **Step 5 — commit** (`npm run format` first; stage only `src/ingest/prefilter.ts`, `test/ingest/prefilter.test.ts`, `test/ingest/pipeline.test.ts`):
-`feat(ingest): prefilter gates on title/seniority/role-family only; fuzzy fit moves to scoring`
+      `feat(ingest): prefilter gates on title/seniority/role-family only; fuzzy fit moves to scoring`
 
 ---
 
@@ -193,7 +227,8 @@ describe('prefilter', () => {
 
 **Files:** modify `src/scoring/rubric.ts` (the `RUBRIC` text only — the schema is unchanged).
 
-- [ ] **Step 1 — append to the `RUBRIC` string** (after the existing weighting bullets), so the scorer explicitly judges must-haves/dealbreakers *in context*:
+- [ ] **Step 1 — append to the `RUBRIC` string** (after the existing weighting bullets), so the scorer explicitly judges must-haves/dealbreakers _in context_:
+
 ```
 Also weigh the candidate's stated must-haves (strong positives) and dealbreakers (strong negatives)
 from their profile — but judge them IN CONTEXT, not by keyword presence. For example, a posting that
@@ -202,6 +237,7 @@ that REQUIRES relocating is. Score a genuine dealbreaker conflict very low (0-20
 cultural preferences (e.g. agile process, testing culture, remote flexibility) as soft positives,
 not requirements.
 ```
+
 (The candidate's must-haves/dealbreakers already reach the model — `scoreUserPrompt` renders the full profile, which includes them.)
 
 - [ ] **Step 2 — verify + commit:** `npm test && npm run lint && npm run build` (no test asserts on prompt text, so this is a behavior/quality change). Commit: `feat(scoring): weigh must-haves/dealbreakers in context (the de-fuzzer)`.
@@ -212,11 +248,12 @@ not requirements.
 
 ## Task 28: Docs
 
-- [ ] Update the prefilter line in `CLAUDE.md` and the README's "How it works" / scoring blurb to state the new philosophy: *prefilter = title seniority/role-family + remote (deterministic, conservative); the LLM scorer judges skills/culture/dealbreakers in context; filter results with `--min-score`.* Add a one-line note to the design spec (`docs/superpowers/specs/…`) recording the prefilter redesign (keep historical text; add a dated note). Commit: `docs: document the prefilter redesign (gate on title/remote; fuzzy → scoring)`.
+- [ ] Update the prefilter line in `CLAUDE.md` and the README's "How it works" / scoring blurb to state the new philosophy: _prefilter = title seniority/role-family + remote (deterministic, conservative); the LLM scorer judges skills/culture/dealbreakers in context; filter results with `--min-score`._ Add a one-line note to the design spec (`docs/superpowers/specs/…`) recording the prefilter redesign (keep historical text; add a dated note). Commit: `docs: document the prefilter redesign (gate on title/remote; fuzzy → scoring)`.
 
 ---
 
 ## Self-Review (before handoff)
+
 - [ ] **Fixes the reported bugs:** the 43-job over-drop (must-have gate removed) and the "relocation" false-positive (dealbreaker description gate removed) — both covered by new prefilter tests.
 - [ ] **Conservative:** ambiguous titles are kept; role-family drop requires OFF_FAMILY ∧ ¬ROLE_TERMS ∧ ¬target-role match.
 - [ ] **Boundary intact:** `prefilter.ts` imports only types (no agent/LLM).

@@ -8,6 +8,14 @@
 > keep the original working name "job-scout" throughout as a historical record of how it was built.
 > In the shipped code, every `job-scout` → `lapel` (binary, package, env prefix `LAPEL_*`, `lapel.db`).
 
+> **Amendment (2026-06-02): prefilter redesign (supersedes §6.3).** In real use, the §6.3 prefilter
+> over-dropped — it substring-matched fuzzy must-haves/dealbreakers against the full description as
+> hard gates (dropped everything when must-haves were conceptual; false-positived on negated
+> boilerplate like "no relocation"). The prefilter now gates only on reliable **title/structured**
+> signals (seniority, remote flag, clearly-different job family) and is conservative (keep when
+> unsure). Skills/culture/dealbreaker judgment moved to the LLM scorer, which weighs them **in
+> context**; users filter with `--min-score`. See `docs/superpowers/plans/2026-06-02-lapel-6-prefilter-redesign.md`.
+
 > **Amendment (2026-06-01, during implementation):** The original design called this a "Claude Agent
 > SDK app" that _consumes_ the official `fetch` MCP. During build we found `@anthropic-ai/claude-agent-sdk`
 > was unused (all LLM calls go through the `@anthropic-ai/sdk` Messages API with tool use) and it forced
