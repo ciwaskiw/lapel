@@ -1,6 +1,8 @@
 node_modules/
 dist/
 *.db
+*.db-shm
+*.db-wal
 .env
 output/
 # the user's profile is private; only keep the placeholder + template
