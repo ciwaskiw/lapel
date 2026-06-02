@@ -36,8 +36,9 @@ export function makeHandlers(ctx: { db: Database.Database; profile: Profile; dep
       for (const e of watchlist) {
         try {
           all.push(...(await adapters[e.source].fetchJobs(e)));
-        } catch {
-          /* isolate */
+        } catch (err) {
+          // isolate per-company failures; MCP clients receive stderr
+          console.error(`  ! ${e.source}:${e.slug} failed: ${(err as Error).message}`);
         }
       }
       const summary = await ingest(db, all, profile, { score: deps.scorer });
@@ -50,8 +51,9 @@ export function makeHandlers(ctx: { db: Database.Database; profile: Profile; dep
       for (const url of args.urls) {
         try {
           jobs.push(urlToNormalizedJob(url, await fetchPosting(url)));
-        } catch {
-          /* isolate */
+        } catch (err) {
+          // isolate per-url failures; MCP clients receive stderr
+          console.error(`  ! ${url} failed: ${(err as Error).message}`);
         }
       }
       return ingest(db, jobs, profile, { score: deps.scorer });

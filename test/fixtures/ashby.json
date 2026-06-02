@@ -1,0 +1,13 @@
+{
+  "jobs": [
+    {
+      "id": "ash-1",
+      "title": "Staff Backend Engineer",
+      "location": "Remote - US",
+      "isRemote": true,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/ash-1",
+      "descriptionPlain": "Build distributed systems in Go.",
+      "publishedAt": "2026-05-18T09:00:00Z"
+    }
+  ]
+}

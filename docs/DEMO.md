@@ -1,7 +1,8 @@
 # Demo
 
-An illustrative end-to-end session. Replace with a real captured run before publishing
-(show only what you're comfortable making public).
+An illustrative end-to-end session showing the workflow and the shape of the output. (Numbers and
+company names are representative, not a specific real run — swap in a captured transcript of your own
+once you've built a profile.)
 
 ```text
 $ node dist/cli.js profile build
