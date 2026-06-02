@@ -14,6 +14,7 @@ import { runProfileBuild, runProfileUpdate, runProfileShow } from './commands/pr
 import { runAdd } from './commands/add.js';
 import { runTailor } from './commands/tailor.js';
 import { startMcpServer } from './mcp/server.js';
+import { runLeads } from './commands/leads.js';
 
 const program = new Command();
 program
@@ -159,6 +160,15 @@ program
   .description('Start the lapel MCP server on stdio.')
   .action(async () => {
     await startMcpServer();
+  });
+
+program
+  .command('leads')
+  .description('Triage a messy leads file into companies.yaml (watchlist) + leads-urls.txt.')
+  .argument('<file>', 'a markdown/text file of job leads')
+  .option('--dry-run', 'print the plan without writing files')
+  .action(async (file: string, opts) => {
+    await runLeads(loadConfig(), file, { dryRun: opts.dryRun });
   });
 
 program.parseAsync(process.argv).catch((err) => {
