@@ -97,6 +97,7 @@ unresolved.
 | `find`                              | Crawl the watchlist, score, dedup, persist, rank (`--no-score` for a key-free prefilter run)           |
 | `add <url…>`                        | Ingest specific posting URLs into the same pipeline                                                    |
 | `pipeline` / `status <id> <state>`  | View tracked jobs / advance the review gate (`new→interested→applied→rejected`)                        |
+| `remove <company>` / `remove --id`  | Drop jobs from the pipeline by company name, or a single `--id` (also clears any tailored-doc records) |
 | `tailor <id\|--url\|--text>`        | Generate tailored docs (`--opus` for the synthesis tier, `--no-interview` to skip the gap-interview)   |
 | `prep <id\|--url\|--text>`          | Interactive interview-coaching chat grounded in your profile + the posting; writes a study-sheet recap |
 | `mcp`                               | Start the MCP server on stdio                                                                          |
