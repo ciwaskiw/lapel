@@ -25,7 +25,7 @@ export interface PrepSessionResult {
 const EXIT = /^(exit|quit|\/done)$/i;
 
 export async function runPrepSession(deps: PrepSessionDeps): Promise<PrepSessionResult> {
-  const transcript: PrepTurn[] = [...deps.transcript];
+  const transcript: PrepTurn[] = [...deps.transcript]; // local copy — never mutate the caller's array
 
   // Opening coach turn — greets/asks about the round (new) or welcomes back (resume).
   const opening = await deps.respond([...transcript]);
@@ -41,6 +41,8 @@ export async function runPrepSession(deps: PrepSessionDeps): Promise<PrepSession
     if (EXIT.test(trimmed)) break;
 
     transcript.push({ role: 'candidate', text: trimmed });
+    // Snapshot the transcript: respond must see the turns up to here, not the coach
+    // reply pushed just below. (Also keeps test mocks from capturing later mutations.)
     const reply = await deps.respond([...transcript]);
     transcript.push({ role: 'coach', text: reply });
     deps.say(reply);

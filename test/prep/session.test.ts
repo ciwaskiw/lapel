@@ -58,6 +58,16 @@ describe('runPrepSession', () => {
     expect(transcript).toHaveLength(1);
   });
 
+  it('ends on the quit and /done exit tokens too', async () => {
+    for (const token of ['quit', '/done', 'QUIT']) {
+      const respond = vi.fn().mockResolvedValueOnce('Opening').mockResolvedValue('should not run');
+      const ask = scriptedAsk([token]);
+      const { transcript } = await runPrepSession({ transcript: [], respond, ask, say: vi.fn() });
+      expect(respond).toHaveBeenCalledTimes(1); // only the opening; token ended the loop
+      expect(transcript).toHaveLength(1);
+    }
+  });
+
   it('carries a seeded (resumed) transcript into the opening respond call', async () => {
     const seeded: PrepTurn[] = [
       { role: 'coach', text: 'Earlier coaching' },
