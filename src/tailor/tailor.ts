@@ -4,14 +4,7 @@ import type Database from 'better-sqlite3';
 import { insertApplication } from '../db/index.js';
 import type { Profile } from '../profile/schema.js';
 import type { TailorOutput } from '../agent/prompts/tailor.js';
-
-function slug(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60);
-}
+import { slug } from '../text/slug.js';
 
 export interface TailorDeps {
   db: Database.Database;
