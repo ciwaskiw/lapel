@@ -20,6 +20,8 @@ export default [
       'src/ingest/**/*.ts',
       'src/ui/**/*.ts',
       'src/scoring/rubric.ts',
+      'src/prep/store.ts',
+      'src/text/slug.ts',
     ],
     rules: {
       'no-restricted-imports': [
