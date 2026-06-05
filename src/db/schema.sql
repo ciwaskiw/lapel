@@ -28,3 +28,13 @@ CREATE TABLE IF NOT EXISTS applications (
   created_at      TEXT NOT NULL,
   UNIQUE(job_id)
 );
+
+CREATE TABLE IF NOT EXISTS prep_sessions (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id          INTEGER NOT NULL REFERENCES jobs(id),
+  round_context   TEXT,
+  transcript_json TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  UNIQUE(job_id)
+);
