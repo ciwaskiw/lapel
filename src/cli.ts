@@ -16,6 +16,7 @@ import { runTailor } from './commands/tailor.js';
 import { startMcpServer } from './mcp/server.js';
 import { runLeads } from './commands/leads.js';
 import { runRemove } from './commands/remove.js';
+import { runPrep } from './commands/prep.js';
 
 const program = new Command();
 program
@@ -153,6 +154,22 @@ program
       textFile: opts.text,
       opus: opts.opus,
       interview: opts.interview,
+    });
+  });
+
+program
+  .command('prep')
+  .description('Interactively prepare for an interview, grounded in your profile + the posting.')
+  .argument('[job-id]', 'a job id from the pipeline', (v) => parseInt(v, 10))
+  .option('--url <url>', 'a posting URL')
+  .option('--text <file>', 'a file containing the posting text')
+  .option('--opus', 'use the synthesis (Opus) tier')
+  .action(async (jobId: number | undefined, opts) => {
+    await runPrep(loadConfig(), {
+      jobId: Number.isNaN(jobId) ? undefined : jobId,
+      url: opts.url,
+      textFile: opts.text,
+      opus: opts.opus,
     });
   });
 
