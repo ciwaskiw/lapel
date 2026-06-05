@@ -67,7 +67,5 @@ default (`LAPEL_BACKEND=subscription`, no API key). 102 tests, on `main`.
 
 ## Infra / project
 
-- **Publish to GitHub** — set the remote (confirm owner; `package.json` `repository` currently
-  guesses `ciwaskiw/lapel`), push `main`, verify CI runs (`.github/workflows/ci.yml`).
 - **Quota / rate-limit handling** — for large boards, throttle/backoff scoring batches against
   subscription rate limits.
