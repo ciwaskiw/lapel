@@ -38,7 +38,7 @@ All LLM calls go through `structuredCall()` (`src/agent/llm.ts`) → an `LlmBack
 
 - TypeScript strict, **NodeNext ESM** → relative imports MUST end in `.js` (e.g. `./config.js`).
 - Prettier-clean; run `npm run format` and stage the result before committing.
-- Commands: `profile build|update|show` · `find` · `add` · `pipeline` · `status` · `tailor` · `mcp`.
+- Commands: `profile build|update|show` · `find` · `add` · `pipeline` · `status` · `tailor` · `prep` · `mcp`.
 - **Prefilter** (`src/ingest/prefilter.ts`) is deterministic and conservative: it drops only on
   reliable **title/structured** signals (junior-when-senior, on-site-when-remote, clearly-different
   job family). It does NOT substring-match skills/must-haves/dealbreakers against descriptions —
@@ -56,8 +56,8 @@ All LLM calls go through `structuredCall()` (`src/agent/llm.ts`) → an `LlmBack
 
 ## Project status & continuing in a fresh session
 
-Built so far (all on `main`): Plans 1–6 + `lapel remove`. Commands: `profile`, `find`, `add`,
-`pipeline`, `status`, `tailor`, `mcp`, `leads`, `remove`. ~102 tests, runs on the Pro subscription
+Built so far (all on `main`): Plans 1–6 + `lapel remove` + prep (Plan 7). Commands: `profile`, `find`, `add`,
+`pipeline`, `status`, `tailor`, `prep`, `mcp`, `leads`, `remove`. ~124 tests, runs on the Pro subscription
 (`LAPEL_BACKEND=subscription`, no API key).
 
 To pick up in a new chat: this file auto-loads; then read **`docs/BACKLOG.md`** (what's not built yet,

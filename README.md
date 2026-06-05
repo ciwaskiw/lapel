@@ -90,15 +90,33 @@ unresolved.
 
 ### Commands
 
-| Command                             | What it does                                                                                         |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `leads <file>`                      | Triage a messy leads list → `companies.yaml` + `leads-urls.txt` (LLM extract + live ATS verify)      |
-| `profile build` / `update` / `show` | Build/refine the living profile from your PDFs + an interview                                        |
-| `find`                              | Crawl the watchlist, score, dedup, persist, rank (`--no-score` for a key-free prefilter run)         |
-| `add <url…>`                        | Ingest specific posting URLs into the same pipeline                                                  |
-| `pipeline` / `status <id> <state>`  | View tracked jobs / advance the review gate (`new→interested→applied→rejected`)                      |
-| `tailor <id\|--url\|--text>`        | Generate tailored docs (`--opus` for the synthesis tier, `--no-interview` to skip the gap-interview) |
-| `mcp`                               | Start the MCP server on stdio                                                                        |
+| Command                             | What it does                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `leads <file>`                      | Triage a messy leads list → `companies.yaml` + `leads-urls.txt` (LLM extract + live ATS verify)        |
+| `profile build` / `update` / `show` | Build/refine the living profile from your PDFs + an interview                                          |
+| `find`                              | Crawl the watchlist, score, dedup, persist, rank (`--no-score` for a key-free prefilter run)           |
+| `add <url…>`                        | Ingest specific posting URLs into the same pipeline                                                    |
+| `pipeline` / `status <id> <state>`  | View tracked jobs / advance the review gate (`new→interested→applied→rejected`)                        |
+| `tailor <id\|--url\|--text>`        | Generate tailored docs (`--opus` for the synthesis tier, `--no-interview` to skip the gap-interview)   |
+| `prep <id\|--url\|--text>`          | Interactive interview-coaching chat grounded in your profile + the posting; writes a study-sheet recap |
+| `mcp`                               | Start the MCP server on stdio                                                                          |
+
+### Interview prep
+
+Once you have a job in your pipeline (or a posting URL / text file), `lapel prep` opens an interactive coaching chat in the terminal:
+
+```bash
+node dist/cli.js prep <job-id>                  # pipeline job — chat resumes across sittings
+node dist/cli.js prep --url https://…           # ad-hoc URL — ephemeral, not remembered
+node dist/cli.js prep --text path/to/job.txt    # paste/file — ephemeral, not remembered
+node dist/cli.js prep <job-id> --opus           # higher synthesis tier
+```
+
+The chat is grounded **only** in your living profile and the posting text — it will not fabricate experience or invent answers. It starts by establishing the interview round conversationally (phone screen, technical, behavioural, hiring manager, etc.) so the coaching is calibrated to what's actually coming.
+
+- **Resume across sittings** — pipeline jobs are identified by `job-id`, so you can exit and return later; the conversation history is reloaded. URL and text sessions are ephemeral.
+- **Exit** — type `exit`, `quit`, `/done`, or press Ctrl-D.
+- **Recap** — on exit, a study-sheet is written to `output/<company>-<role>/interview-prep.md` summarising key talking points, questions to ask, and gaps to address.
 
 ## LLM backends
 

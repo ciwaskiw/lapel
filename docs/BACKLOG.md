@@ -9,6 +9,10 @@ default (`LAPEL_BACKEND=subscription`, no API key). 102 tests, on `main`.
 
 ## Workflow / CLI
 
+- **`lapel prep`** — _(built 2026-06-05)_ interactive interview-coaching chat grounded in profile +
+  posting; resumes per-job across sittings; writes `interview-prep.md`. Spec:
+  `docs/superpowers/specs/2026-06-05-prep-design.md`, plan:
+  `docs/superpowers/plans/2026-06-05-lapel-7-prep.md`.
 - **`lapel score`** _(recommended next)_ — score pipeline jobs that are unscored (`score IS NULL`).
   Decouples `find --no-score` (free scout) from scoring; today you must `remove` + re-`find` to
   score scouted jobs (dedup skips already-stored rows). Small: a `getJobs` filter + reuse
