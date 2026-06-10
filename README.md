@@ -12,38 +12,6 @@ It's also a portfolio project: see [How this was built](#how-this-was-built).
 
 ---
 
-## Why
-
-Job hunting splits into "find roles worth applying to" and "tailor each application," and both are tedious in different ways. `lapel` makes finding a fast, deduplicated, _scored_ pipeline you own, and makes tailoring a grounded first draft you refine — while never auto-applying and never inventing experience on your behalf.
-
-## How it works
-
-**Deterministic core, LLM on top. One engine, two front-ends.**
-
-```
-  Sources (ATS APIs + URL ingest)                 ┌─────────────────────────┐
-  greenhouse / lever / ashby ──► NormalizedJob ──► │  ingest pipeline (pure) │
-  add <url>                                        │  dedup → prefilter      │
-                                                   └───────────┬─────────────┘
-                                          cheap, deterministic │ keeps cost down
-                                                               ▼
-                                            LLM rubric scoring (Anthropic SDK)
-                                                               │
-                                                               ▼
-                                              SQLite pipeline  (better-sqlite3)
-                                       new → interested → applied → rejected
-                                                               │
-                          ┌────────────────────────────────────┼───────────────────────┐
-                          ▼                                                              ▼
-                   CLI (commander)                                          MCP server (stdio)
-        profile · find · add · pipeline · status · tailor          query_pipeline · find_jobs ·
-                                                                      add_jobs · tailor
-```
-
-- **Sources** (`src/sources/`, `src/fetcher/`) and the **ingest pipeline** (`src/ingest/`) are pure TypeScript with **no LLM dependency** — fully unit-tested without a network or API key.
-- **Scoring** runs a cheap deterministic **prefilter** _before_ any LLM call. The prefilter is deliberately conservative — it only drops on reliable **title/structured** signals (junior titles when you want senior, on-site when you require remote, clearly-different job families like "Art Director"). It does **not** keyword-match skills or dealbreakers against the description; that fuzzy judgment is the LLM **rubric's** job — it scores what survives and weighs your must-haves/dealbreakers _in context_. Filter the results with `--min-score`. Cost-aware by construction.
-- The **CLI** and the **published MCP server** are thin wrappers over the same core: no business logic is duplicated between them.
-
 ## Quickstart
 
 > Requires **Node 22** (the native `better-sqlite3` build needs it). By default lapel uses your
@@ -87,6 +55,46 @@ probing, e.g. "Rocket Money" → `greenhouse/truebill`). Resolvable companies ar
 career landing pages it can't resolve (e.g. a custom/Workday site) are flagged for you to add by
 hand. Companies whose board slug differs from their name and can't be probed will also surface as
 unresolved.
+
+---
+
+## Why
+
+Job hunting splits into "find roles worth applying to" and "tailor each application," and both are tedious in different ways. `lapel` makes finding a fast, deduplicated, _scored_ pipeline you own, and makes tailoring a grounded first draft you refine — while never auto-applying and never inventing experience on your behalf.
+
+## How it works
+
+**Deterministic core, LLM on top. One engine, two front-ends.**
+
+```mermaid
+flowchart TD
+    subgraph sources["Sources"]
+        ATS["Greenhouse · Lever · Ashby\nATS APIs"]
+        URL["add &lt;url&gt;\nURL ingest"]
+    end
+
+    IP["Ingest Pipeline\ndedup → prefilter\npure TS · no LLM"]
+
+    LLM["LLM Rubric Scoring\nAnthropic SDK"]
+
+    DB[("SQLite Pipeline\nnew → interested → applied → rejected")]
+
+    subgraph frontends["Front-ends (same core)"]
+        CLI["CLI\nprofile · find · add · leads\npipeline · status · tailor · prep · remove"]
+        MCP["MCP Server\nquery_pipeline · find_jobs · add_jobs · tailor"]
+    end
+
+    ATS --> IP
+    URL --> IP
+    IP -->|"cheap · deterministic"| LLM
+    LLM --> DB
+    DB --> CLI
+    DB --> MCP
+```
+
+- **Sources** (`src/sources/`, `src/fetcher/`) and the **ingest pipeline** (`src/ingest/`) are pure TypeScript with **no LLM dependency** — fully unit-tested without a network or API key.
+- **Scoring** runs a cheap deterministic **prefilter** _before_ any LLM call. The prefilter is deliberately conservative — it only drops on reliable **title/structured** signals (junior titles when you want senior, on-site when you require remote, clearly-different job families like "Art Director"). It does **not** keyword-match skills or dealbreakers against the description; that fuzzy judgment is the LLM **rubric's** job — it scores what survives and weighs your must-haves/dealbreakers _in context_. Filter the results with `--min-score`. Cost-aware by construction.
+- The **CLI** and the **published MCP server** are thin wrappers over the same core: no business logic is duplicated between them.
 
 ### Commands
 
@@ -168,7 +176,7 @@ Only **public ATS APIs** (Greenhouse/Lever/Ashby) and postings you explicitly ha
 This repo is also a demonstration of a disciplined agentic-development workflow — every stage is committed so the process is auditable:
 
 1. **Brainstorm → spec.** Requirements and architecture were explored interactively, then written to a committed design spec ([`docs/superpowers/specs/`](docs/superpowers/specs/)) as the single source of truth.
-2. **Spec → plans.** The spec was decomposed into sequenced, test-driven implementation plans ([`docs/superpowers/plans/`](docs/superpowers/plans/)): foundation, intelligence, surface — and later a fourth, the pluggable LLM backend.
+2. **Spec → plans.** The spec was decomposed into sequenced, test-driven implementation plans ([`docs/superpowers/plans/`](docs/superpowers/plans/)): foundation, intelligence, surface — then iteratively extended as new needs emerged: a pluggable LLM backend (Plan 4), a leads-triage command (Plan 5), a prefilter redesign (Plan 6), and an interview-prep feature (Plan 7).
 3. **Tiered, subagent-driven execution.** Planning and review ran on a stronger model (Opus); each plan task was implemented by a fresh, cheaper subagent (Sonnet) and reviewed against the plan before the next task — TDD throughout, frequent commits.
 4. **Honest course-correction.** Mid-build, the originally specified `@anthropic-ai/claude-agent-sdk` turned out to be unused and to break a clean `npm install` (a `zod` v4 peer conflict). It was dropped in favor of the `@anthropic-ai/sdk` Messages API (structured tool use) plus a _published_ MCP server — see the amendment note atop the spec. The agentic + MCP value is in the design (tool-use loops, the living-profile feedback loop, a published server), not in any one package.
 5. **Runtime tiering mirrors the build.** A fast worker model (Sonnet) handles scoring and most tailoring; an opt-in synthesis tier (Opus, via `--opus`/config) handles profile synthesis and final polish.
