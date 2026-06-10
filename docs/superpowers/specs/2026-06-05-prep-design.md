@@ -60,8 +60,8 @@ lapel prep ... --opus        # use the synthesis (Opus) tier; default is the wor
 - **Exactly one** of `<job-id>` / `--url` / `--text` must be provided. Argument resolution mirrors
   `tailor` (`src/commands/tailor.ts` lines ~35–50): id → `getJobById` (error if absent); url →
   `fetchPostingText`; text → `readFileSync`.
-- Requires a profile; error `No profile found. Run \`lapel profile build\` first.` if absent
-  (same guard as `tailor`/`add`).
+- Requires a profile; error `No profile found. Run \`lapel profile build\` first.`if absent
+(same guard as`tailor`/`add`).
 - `--opus` selects `cfg.models.synth`; default is `cfg.models.worker` (same convention as
   `tailor --opus`).
 - Wired into `src/cli.ts` as a new `program.command('prep')`, thin — delegates to
@@ -99,16 +99,21 @@ specifics — everything is injected so it is unit-testable with mocks.
 
 ```ts
 export type PrepRole = 'coach' | 'candidate';
-export interface PrepTurn { role: PrepRole; text: string; }
-
-export interface PrepSessionDeps {
-  transcript: PrepTurn[];                       // seeded from store on resume; [] for new/ephemeral
-  respond: (transcript: PrepTurn[]) => Promise<string>;  // one structured coach turn → reply text
-  ask: (prompt: string) => Promise<string | null>;       // readline; null on EOF (Ctrl-D)
-  onTurn?: (transcript: PrepTurn[]) => void;    // persistence hook, called after every coach turn
+export interface PrepTurn {
+  role: PrepRole;
+  text: string;
 }
 
-export interface PrepSessionResult { transcript: PrepTurn[]; }
+export interface PrepSessionDeps {
+  transcript: PrepTurn[]; // seeded from store on resume; [] for new/ephemeral
+  respond: (transcript: PrepTurn[]) => Promise<string>; // one structured coach turn → reply text
+  ask: (prompt: string) => Promise<string | null>; // readline; null on EOF (Ctrl-D)
+  onTurn?: (transcript: PrepTurn[]) => void; // persistence hook, called after every coach turn
+}
+
+export interface PrepSessionResult {
+  transcript: PrepTurn[];
+}
 
 export async function runPrepSession(deps: PrepSessionDeps): Promise<PrepSessionResult>;
 ```
@@ -188,7 +193,7 @@ Row types (`PrepSessionRow`) live in `src/db/index.ts` alongside `JobRow`/`Appli
 - **`<job-id>` sessions persist and resume.** They are the only input with a stable key.
 - **`--url` / `--text` sessions are ephemeral** — no stable key, so no persistence and no resume.
   Print a one-line note at startup: `(this session won't be remembered — prep a pipeline job by id
-  to resume later)`. The recap is still written.
+to resume later)`. The recap is still written.
 
 ---
 
@@ -240,15 +245,15 @@ any tailor output, reusing the `tailor` folder convention `output/<slug(company)
 
 ## 8. Error Handling Summary
 
-| Condition | Behavior |
-|---|---|
-| No profile | Throw the standard "Run `lapel profile build` first." |
-| Non-TTY stdin | Throw "prep is interactive; run it in a terminal." |
-| Unknown job id | Throw `No job with id <n>.` (as `tailor`) |
-| No input selector | Throw "Provide a <job-id>, a URL, or --text <file>." |
-| Empty user input | Re-prompt; no turn sent |
-| LLM call fails mid-session | Surface error; transcript already persisted via `onTurn` (id sessions) |
-| Session with no candidate turns | Skip recap; print "nothing to recap yet" |
+| Condition                       | Behavior                                                               |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| No profile                      | Throw the standard "Run `lapel profile build` first."                  |
+| Non-TTY stdin                   | Throw "prep is interactive; run it in a terminal."                     |
+| Unknown job id                  | Throw `No job with id <n>.` (as `tailor`)                              |
+| No input selector               | Throw "Provide a <job-id>, a URL, or --text <file>."                   |
+| Empty user input                | Re-prompt; no turn sent                                                |
+| LLM call fails mid-session      | Surface error; transcript already persisted via `onTurn` (id sessions) |
+| Session with no candidate turns | Skip recap; print "nothing to recap yet"                               |
 
 ---
 
@@ -272,6 +277,7 @@ any tailor output, reusing the `tailor` folder convention `output/<slug(company)
 ## 10. Files
 
 **New:**
+
 - `src/commands/prep.ts` — CLI orchestration (§7)
 - `src/prep/session.ts` — turn-loop engine (§4.1)
 - `src/prep/store.ts` — persistence helpers (§5.2)
@@ -280,6 +286,7 @@ any tailor output, reusing the `tailor` folder convention `output/<slug(company)
 - tests for each of the above
 
 **Touched:**
+
 - `src/cli.ts` — register `prep` command
 - `src/db/schema.sql` — `prep_sessions` table
 - `src/db/index.ts` — `PrepSessionRow` type (and any shared session helpers)

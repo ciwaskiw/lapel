@@ -10,14 +10,13 @@ export function renderPipeline(
 ): string {
   const rows = getJobs(db, filter);
   return formatTable(
-    ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
+    ['ID', 'Score', 'Status', 'Title', 'Company'],
     rows.map((r) => [
       String(r.id),
       r.score == null ? '—' : String(r.score),
       r.status,
       r.title,
-      r.company,
-      r.location ?? '',
+      r.company
     ]),
   );
 }

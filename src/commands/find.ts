@@ -55,14 +55,13 @@ export async function runFind(deps: RunFindDeps): Promise<IngestSummary> {
   );
   log(
     formatTable(
-      ['ID', 'Score', 'Status', 'Title', 'Company', 'Location'],
+      ['ID', 'Score', 'Status', 'Title', 'Company'],
       rows.map((r) => [
         String(r.id),
         r.score == null ? '—' : String(r.score),
         r.status,
         r.title,
         r.company,
-        r.location ?? '',
       ]),
     ),
   );
