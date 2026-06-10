@@ -8,7 +8,7 @@
 2. **Tailor** — for a role you choose, generate a tailored résumé summary + cover letter grounded strictly in your real experience.
 3. **Learn you** — a one-time interview synthesizes your résumé/LinkedIn into a structured profile, and the tool _deepens_ that profile as you use it (e.g. a gap-interview during tailoring asks about skills a posting stresses but your profile only touches on).
 
-It's also a portfolio project: see [How this was built](#how-this-was-built).
+It's also a portfolio project: see [How this was built](#how-this-was-built) and the [full build story on the blog](https://chrisiwaskiw.dev/blog/lapel-building-a-job-hunting-pipeline-that-remembers-you/).
 
 ---
 
